@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Rummikub — SM G973F (RF8N60HJ9MK)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "RF8N60HJ9MK",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Rummikub — SM G973F (profile)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "RF8N60HJ9MK",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Rummikub — any connected device",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug"
+    }
+  ]
+}

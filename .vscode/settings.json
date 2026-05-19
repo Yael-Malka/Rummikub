@@ -1,0 +1,9 @@
+{
+  "dart.flutterSdkPath": "/Users/brix/Documents/flutter",
+  "dart.lineLength": 80,
+  "editor.formatOnSave": true,
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true
+  }
+}

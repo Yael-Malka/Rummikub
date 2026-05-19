@@ -1,5 +1,5 @@
 name: rummikub_app
-description: Rummikub assistant — simulate game state and find optimal moves.
+description: Rummikub assistant - simulate game state and find optimal moves.
 publish_to: 'none'
 version: 1.0.0+1
 
