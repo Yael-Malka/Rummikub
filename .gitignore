@@ -1,0 +1,65 @@
+# --- Cursor (IDE / agents; keep local only) ---
+.cursor/
+**/.cursor/
+
+# --- Dart / Flutter ---
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/build/
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+coverage/
+doc/api/
+
+# --- IDE ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# --- Android ---
+**/android/**/gradle-wrapper.jar
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
+# --- iOS / macOS ---
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/macos/Flutter/ephemeral/
+.DS_Store
+**/.DS_Store
+
+# --- Windows / Linux (desktop) ---
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+**/*.pem
+
+# --- Logs & misc ---
+*.log
+*.swp
+*~
