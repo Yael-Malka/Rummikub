@@ -1,0 +1,4 @@
+enum MeldType {
+  group,
+  run,
+}
