@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/di/app_providers.dart';
 import 'core/theme/app_theme.dart';
-import 'features/simulation/presentation/providers/simulation_view_model.dart';
 import 'features/simulation/presentation/screens/simulation_screen.dart';
 
 void main() {
@@ -16,11 +16,7 @@ class RummikubApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<SimulationViewModel>(
-          create: (_) => SimulationViewModel(),
-        ),
-      ],
+      providers: AppProviders.providers,
       child: MaterialApp(
         title: AppStrings.appTitle,
         theme: AppTheme.light,

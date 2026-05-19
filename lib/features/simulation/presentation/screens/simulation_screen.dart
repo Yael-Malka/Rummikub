@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../providers/simulation_view_model.dart';
 import '../state/simulation_state.dart';
-import '../widgets/simulation_body.dart';
+import '../widgets/simulation_error_content.dart';
+import '../widgets/simulation_initial_content.dart';
+import '../widgets/simulation_loaded_content.dart';
 
 class SimulationScreen extends StatelessWidget {
   const SimulationScreen({super.key});
@@ -18,12 +20,15 @@ class SimulationScreen extends StatelessWidget {
         title: const Text(AppStrings.simulationScreenTitle),
       ),
       body: switch (viewModel.state) {
-        SimulationInitial() => const SimulationBody(),
+        SimulationInitial() => const SimulationInitialContent(),
         SimulationLoading() => const Center(
             child: CircularProgressIndicator(),
           ),
-        SimulationError(:final message) => Center(
-            child: Text(message),
+        SimulationLoaded(:final gameState) => SimulationLoadedContent(
+            gameState: gameState,
+          ),
+        SimulationError(:final message) => SimulationErrorContent(
+            message: message,
           ),
       },
     );
