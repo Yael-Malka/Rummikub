@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/app_primary_button.dart';
+import '../../../../core/widgets/app_secondary_button.dart';
 import '../../domain/entities/game_state.dart';
 import '../providers/simulation_view_model.dart';
+import '../state/optimal_moves_state.dart';
+import 'optimal_moves_section.dart';
 import 'rack_view.dart';
 import 'table_view.dart';
 
@@ -16,7 +19,9 @@ class SimulationLoadedContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.read<SimulationViewModel>();
+    final viewModel = context.watch<SimulationViewModel>();
+    final isSearchingMoves =
+        viewModel.optimalMovesState is OptimalMovesLoading;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -26,9 +31,23 @@ class SimulationLoadedContent extends StatelessWidget {
           RackView(tiles: gameState.rack),
           const SizedBox(height: 24),
           TableView(melds: gameState.tableMelds),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(AppStrings.firstMeldToggleLabel),
+            value: viewModel.isFirstMeldTurn,
+            onChanged: isSearchingMoves ? null : viewModel.setFirstMeldTurn,
+          ),
+          AppSecondaryButton(
+            label: AppStrings.showOptimalMovesButton,
+            isEnabled: !isSearchingMoves,
+            onPressed: viewModel.findOptimalMoves,
+          ),
+          OptimalMovesSection(movesState: viewModel.optimalMovesState),
           const SizedBox(height: 24),
           AppPrimaryButton(
             label: AppStrings.simulateButton,
+            isEnabled: !isSearchingMoves,
             onPressed: viewModel.simulate,
           ),
         ],

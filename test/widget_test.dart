@@ -7,6 +7,7 @@ import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld_type.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/tile_color.dart';
 import 'package:rummikub_app/features/simulation/domain/repositories/game_state_repository.dart';
+import 'package:rummikub_app/features/game_engine/domain/usecases/find_optimal_moves_use_case.dart';
 import 'package:rummikub_app/features/simulation/domain/usecases/generate_simulated_state_use_case.dart';
 import 'package:rummikub_app/features/simulation/presentation/providers/simulation_view_model.dart';
 import 'package:rummikub_app/features/simulation/presentation/screens/simulation_screen.dart';
@@ -17,17 +18,14 @@ final class _WidgetTestRepository implements GameStateRepository {
   @override
   GameState generateSimulatedState() {
     return GameState(
-      rack: [
-        regularTile(TileColor.red, 1),
-        regularTile(TileColor.red, 2),
-      ],
+      rack: [regularTile(TileColor.orange, 8)],
       tableMelds: [
         Meld(
           type: MeldType.group,
           tiles: [
-            regularTile(TileColor.blue, 9),
-            regularTile(TileColor.black, 9),
-            regularTile(TileColor.orange, 9),
+            regularTile(TileColor.red, 8),
+            regularTile(TileColor.blue, 8),
+            regularTile(TileColor.black, 8),
           ],
         ),
       ],
@@ -41,6 +39,7 @@ void main() {
       ChangeNotifierProvider<SimulationViewModel>(
         create: (_) => SimulationViewModel(
           GenerateSimulatedStateUseCase(_WidgetTestRepository()),
+          const FindOptimalMovesUseCase(),
         ),
         child: const MaterialApp(
           home: SimulationScreen(),
@@ -58,6 +57,7 @@ void main() {
       ChangeNotifierProvider<SimulationViewModel>(
         create: (_) => SimulationViewModel(
           GenerateSimulatedStateUseCase(_WidgetTestRepository()),
+          const FindOptimalMovesUseCase(),
         ),
         child: const MaterialApp(
           home: SimulationScreen(),
@@ -71,7 +71,30 @@ void main() {
 
     expect(find.textContaining(AppStrings.rackTitle), findsOneWidget);
     expect(find.textContaining(AppStrings.tableTitle), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('9'), findsWidgets);
+    expect(find.text('8'), findsWidgets);
+  });
+
+  testWidgets('givenLoaded_whenShowOptimalMoves_thenShowsResults',
+      (tester) async {
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SimulationViewModel>(
+        create: (_) => SimulationViewModel(
+          GenerateSimulatedStateUseCase(_WidgetTestRepository()),
+          const FindOptimalMovesUseCase(),
+        ),
+        child: const MaterialApp(
+          home: SimulationScreen(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(AppStrings.simulateButton));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(AppStrings.showOptimalMovesButton));
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.optimalMovesTitle), findsOneWidget);
   });
 }

@@ -2,27 +2,33 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Rummikub — SM G973F (RF8N60HJ9MK)",
+      "name": "Flutter: Debug",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "deviceId": "RF8N60HJ9MK",
-      "flutterMode": "debug"
+      "flutterMode": "debug",
+      "pauseBeforeMain": false,
+      "toolArgs": [
+        "--disable-service-auth-codes"
+      ]
     },
     {
-      "name": "Rummikub — SM G973F (profile)",
+      "name": "Flutter: Debug (attach)",
+      "request": "attach",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "RF8N60HJ9MK",
+      "preLaunchTask": "flutter-run-device"
+    },
+    {
+      "name": "Flutter: Run (no breakpoints)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "deviceId": "RF8N60HJ9MK",
-      "flutterMode": "profile"
-    },
-    {
-      "name": "Rummikub — any connected device",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "flutterMode": "debug"
+      "flutterMode": "debug",
+      "noDebug": true
     }
   ]
 }

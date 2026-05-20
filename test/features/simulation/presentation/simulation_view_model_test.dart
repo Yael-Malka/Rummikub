@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rummikub_app/features/game_engine/domain/usecases/find_optimal_moves_use_case.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/game_state.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld_type.dart';
@@ -6,6 +7,7 @@ import 'package:rummikub_app/features/simulation/domain/entities/tile_color.dart
 import 'package:rummikub_app/features/simulation/domain/repositories/game_state_repository.dart';
 import 'package:rummikub_app/features/simulation/domain/usecases/generate_simulated_state_use_case.dart';
 import 'package:rummikub_app/features/simulation/presentation/providers/simulation_view_model.dart';
+import 'package:rummikub_app/features/simulation/presentation/state/optimal_moves_state.dart';
 import 'package:rummikub_app/features/simulation/presentation/state/simulation_state.dart';
 
 import '../../game_engine/domain/test_tiles.dart';
@@ -27,7 +29,7 @@ final class _FakeGameStateRepository implements GameStateRepository {
 
 GameState _validGameState() {
   return GameState(
-    rack: [regularTile(TileColor.orange, 2)],
+    rack: [regularTile(TileColor.orange, 8)],
     tableMelds: [
       Meld(
         type: MeldType.group,
@@ -41,25 +43,25 @@ GameState _validGameState() {
   );
 }
 
+SimulationViewModel _viewModel(GameState state) {
+  return SimulationViewModel(
+    GenerateSimulatedStateUseCase(_FakeGameStateRepository(state)),
+    const FindOptimalMovesUseCase(),
+  );
+}
+
 void main() {
   group('SimulationViewModel', () {
     test('givenNewInstance_whenCreated_thenStateIsInitial', () {
-      final viewModel = SimulationViewModel(
-        GenerateSimulatedStateUseCase(
-          _FakeGameStateRepository(_validGameState()),
-        ),
-      );
+      final viewModel = _viewModel(_validGameState());
 
       expect(viewModel.state, isA<SimulationInitial>());
+      expect(viewModel.optimalMovesState, isA<OptimalMovesIdle>());
     });
 
     test('givenSuccess_whenSimulate_thenStateIsLoaded', () async {
       final expected = _validGameState();
-      final viewModel = SimulationViewModel(
-        GenerateSimulatedStateUseCase(
-          _FakeGameStateRepository(expected),
-        ),
-      );
+      final viewModel = _viewModel(expected);
 
       await viewModel.simulate();
 
@@ -76,11 +78,46 @@ void main() {
             shouldThrow: true,
           ),
         ),
+        const FindOptimalMovesUseCase(),
       );
 
       await viewModel.simulate();
 
       expect(viewModel.state, isA<SimulationError>());
+    });
+
+    test('givenLoaded_whenFindOptimalMoves_thenMovesLoaded', () async {
+      final viewModel = _viewModel(_validGameState());
+
+      await viewModel.simulate();
+      await viewModel.findOptimalMoves();
+
+      expect(viewModel.optimalMovesState, isA<OptimalMovesLoaded>());
+      final loaded = viewModel.optimalMovesState as OptimalMovesLoaded;
+      expect(loaded.moves, isNotEmpty);
+      expect(
+        loaded.moves.any((move) => move.tilesPlayedFromRack > 0),
+        isTrue,
+      );
+    });
+
+    test('givenFirstMeldToggle_whenChanged_thenUpdatesFlag', () async {
+      final viewModel = _viewModel(_validGameState());
+
+      viewModel.setFirstMeldTurn(true);
+
+      expect(viewModel.isFirstMeldTurn, isTrue);
+    });
+
+    test('givenNewSimulation_whenSimulate_thenResetsFirstMeldToggle', () async {
+      final viewModel = _viewModel(_validGameState());
+
+      await viewModel.simulate();
+      viewModel.setFirstMeldTurn(true);
+      await viewModel.simulate();
+
+      expect(viewModel.isFirstMeldTurn, isFalse);
+      expect(viewModel.optimalMovesState, isA<OptimalMovesIdle>());
     });
   });
 }

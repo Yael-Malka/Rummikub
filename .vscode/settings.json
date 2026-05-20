@@ -1,5 +1,9 @@
 {
   "dart.flutterSdkPath": "/Users/brix/Documents/flutter",
+  "dart.debuggerPauseBeforeMain": false,
+  "dart.flutterRunAdditionalArgs": [
+    "--disable-service-auth-codes"
+  ],
   "dart.lineLength": 80,
   "editor.formatOnSave": true,
   "[dart]": {
