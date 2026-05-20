@@ -9,6 +9,7 @@ import '../providers/simulation_view_model.dart';
 import '../state/optimal_moves_state.dart';
 import 'optimal_moves_section.dart';
 import 'rack_view.dart';
+import 'saved_session_banner.dart';
 import 'table_view.dart';
 
 /// Displays a simulated rack and table.
@@ -28,6 +29,7 @@ class SimulationLoadedContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (viewModel.wasSessionRestored) const SavedSessionBanner(),
           RackView(tiles: gameState.rack),
           const SizedBox(height: 24),
           TableView(melds: gameState.tableMelds),
@@ -43,7 +45,10 @@ class SimulationLoadedContent extends StatelessWidget {
             isEnabled: !isSearchingMoves,
             onPressed: viewModel.findOptimalMoves,
           ),
-          OptimalMovesSection(movesState: viewModel.optimalMovesState),
+          OptimalMovesSection(
+            movesState: viewModel.optimalMovesState,
+            stateBefore: gameState,
+          ),
           const SizedBox(height: 24),
           AppPrimaryButton(
             label: AppStrings.simulateButton,

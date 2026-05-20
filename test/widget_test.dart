@@ -49,6 +49,7 @@ void main() {
 
     expect(find.text(AppStrings.simulationScreenTitle), findsOneWidget);
     expect(find.text(AppStrings.simulateButton), findsOneWidget);
+    expect(find.text(AppStrings.howToTitle), findsOneWidget);
   });
 
   testWidgets('givenSimulateTap_whenLoaded_thenShowsRackAndTable',

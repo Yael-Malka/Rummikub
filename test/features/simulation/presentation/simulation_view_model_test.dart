@@ -6,6 +6,8 @@ import 'package:rummikub_app/features/simulation/domain/entities/meld_type.dart'
 import 'package:rummikub_app/features/simulation/domain/entities/tile_color.dart';
 import 'package:rummikub_app/features/simulation/domain/repositories/game_state_repository.dart';
 import 'package:rummikub_app/features/simulation/domain/usecases/generate_simulated_state_use_case.dart';
+import 'package:rummikub_app/core/services/session_storage.dart';
+import 'package:rummikub_app/features/simulation/data/models/saved_session.dart';
 import 'package:rummikub_app/features/simulation/presentation/providers/simulation_view_model.dart';
 import 'package:rummikub_app/features/simulation/presentation/state/optimal_moves_state.dart';
 import 'package:rummikub_app/features/simulation/presentation/state/simulation_state.dart';
@@ -43,10 +45,31 @@ GameState _validGameState() {
   );
 }
 
-SimulationViewModel _viewModel(GameState state) {
+final class _FakeSessionStorage implements SessionStorage {
+  SavedSession? saved;
+
+  @override
+  Future<void> clearLastSession() async {
+    saved = null;
+  }
+
+  @override
+  Future<SavedSession?> loadLastSession() async => saved;
+
+  @override
+  Future<void> saveLastSession(SavedSession session) async {
+    saved = session;
+  }
+}
+
+SimulationViewModel _viewModel(
+  GameState state, {
+  _FakeSessionStorage? sessionStorage,
+}) {
   return SimulationViewModel(
     GenerateSimulatedStateUseCase(_FakeGameStateRepository(state)),
     const FindOptimalMovesUseCase(),
+    sessionStorage: sessionStorage ?? _FakeSessionStorage(),
   );
 }
 
@@ -118,6 +141,36 @@ void main() {
 
       expect(viewModel.isFirstMeldTurn, isFalse);
       expect(viewModel.optimalMovesState, isA<OptimalMovesIdle>());
+    });
+
+    test('givenSavedSession_whenRestored_thenStateIsLoaded', () async {
+      final storage = _FakeSessionStorage();
+      final saved = SavedSession(
+        gameState: _validGameState(),
+        isFirstMeldTurn: true,
+      );
+      storage.saved = saved;
+
+      final viewModel = _viewModel(_validGameState(), sessionStorage: storage);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(viewModel.state, isA<SimulationLoaded>());
+      expect(viewModel.isFirstMeldTurn, isTrue);
+      expect(viewModel.wasSessionRestored, isTrue);
+    });
+
+    test('givenSimulateSuccess_whenSaved_thenPersistsSession', () async {
+      final storage = _FakeSessionStorage();
+      final viewModel = _viewModel(_validGameState(), sessionStorage: storage);
+
+      await viewModel.simulate();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(storage.saved, isNotNull);
+      expect(
+        storage.saved!.gameState.usedTileIds,
+        _validGameState().usedTileIds,
+      );
     });
   });
 }

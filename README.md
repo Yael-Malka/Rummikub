@@ -14,13 +14,15 @@ flutter test
 flutter run
 ```
 
-## Phase 1 (done)
+## MVP (phases 1–8)
 
-- Project scaffold under `Rummikub_App/`
-- **Provider** + `SimulationViewModel` + sealed `SimulationState`
-- `SimulationScreen` with welcome message
-- Unit + widget tests
+- Simulate legal rack + table
+- Find and show all optimal moves (max tiles from rack)
+- First-meld toggle (30+ points)
+- Step-by-step explanation per move (play + table reorganize)
+- Restore last session via Hive on app restart
+- Light / dark theme
 
-## Next
+## Next (future)
 
-Say **"בצע שלב 2"** for domain entities and full deck (106 tiles).
+- Camera / tile recognition (`features/vision/`)
