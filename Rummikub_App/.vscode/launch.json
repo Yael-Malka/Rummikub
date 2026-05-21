@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter: Debug",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "RF8N60HJ9MK",
+      "flutterMode": "debug",
+      "pauseBeforeMain": false,
+      "toolArgs": [
+        "--disable-service-auth-codes"
+      ]
+    },
+    {
+      "name": "Flutter: Debug (attach)",
+      "request": "attach",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "RF8N60HJ9MK",
+      "preLaunchTask": "flutter-run-device"
+    },
+    {
+      "name": "Flutter: Run (no breakpoints)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "RF8N60HJ9MK",
+      "flutterMode": "debug",
+      "noDebug": true
+    }
+  ]
+}
