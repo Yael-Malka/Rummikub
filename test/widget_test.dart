@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:rummikub_app/core/constants/app_strings.dart';
@@ -7,12 +6,13 @@ import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld_type.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/tile_color.dart';
 import 'package:rummikub_app/features/simulation/domain/repositories/game_state_repository.dart';
-import 'package:rummikub_app/features/game_engine/domain/usecases/find_optimal_moves_use_case.dart';
+import 'package:rummikub_app/features/simulation/domain/services/optimal_moves_computer.dart';
 import 'package:rummikub_app/features/simulation/domain/usecases/generate_simulated_state_use_case.dart';
 import 'package:rummikub_app/features/simulation/presentation/providers/simulation_view_model.dart';
 import 'package:rummikub_app/features/simulation/presentation/screens/simulation_screen.dart';
 
 import 'features/game_engine/domain/test_tiles.dart';
+import 'test_app.dart';
 
 final class _WidgetTestRepository implements GameStateRepository {
   @override
@@ -34,16 +34,21 @@ final class _WidgetTestRepository implements GameStateRepository {
 }
 
 void main() {
+  setUpAll(() {
+    OptimalMovesComputer.useBackgroundIsolate = false;
+  });
+
+  tearDownAll(() {
+    OptimalMovesComputer.useBackgroundIsolate = true;
+  });
+
   testWidgets('SimulationScreen shows welcome and simulate button', (tester) async {
     await tester.pumpWidget(
       ChangeNotifierProvider<SimulationViewModel>(
         create: (_) => SimulationViewModel(
           GenerateSimulatedStateUseCase(_WidgetTestRepository()),
-          const FindOptimalMovesUseCase(),
         ),
-        child: const MaterialApp(
-          home: SimulationScreen(),
-        ),
+        child: const TestApp(child: SimulationScreen()),
       ),
     );
 
@@ -58,11 +63,8 @@ void main() {
       ChangeNotifierProvider<SimulationViewModel>(
         create: (_) => SimulationViewModel(
           GenerateSimulatedStateUseCase(_WidgetTestRepository()),
-          const FindOptimalMovesUseCase(),
         ),
-        child: const MaterialApp(
-          home: SimulationScreen(),
-        ),
+        child: const TestApp(child: SimulationScreen()),
       ),
     );
 
@@ -81,11 +83,8 @@ void main() {
       ChangeNotifierProvider<SimulationViewModel>(
         create: (_) => SimulationViewModel(
           GenerateSimulatedStateUseCase(_WidgetTestRepository()),
-          const FindOptimalMovesUseCase(),
         ),
-        child: const MaterialApp(
-          home: SimulationScreen(),
-        ),
+        child: const TestApp(child: SimulationScreen()),
       ),
     );
 
@@ -94,7 +93,8 @@ void main() {
 
     await tester.tap(find.text(AppStrings.showOptimalMovesButton));
     await tester.pump();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text(AppStrings.optimalMovesTitle), findsOneWidget);
   });

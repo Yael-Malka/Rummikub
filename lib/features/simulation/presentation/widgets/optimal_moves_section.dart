@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/widgets/computing_indicator.dart';
+import '../../../../core/widgets/rtl_text.dart';
 import '../../../game_engine/domain/entities/move.dart';
 import '../../../game_engine/domain/move_steps_builder.dart';
 import '../../domain/entities/game_state.dart';
@@ -23,13 +25,10 @@ class OptimalMovesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (movesState) {
       OptimalMovesIdle() => const SizedBox.shrink(),
-      OptimalMovesLoading() => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
+      OptimalMovesLoading() => const OptimalMovesComputingIndicator(),
       OptimalMovesError(:final message) => Padding(
           padding: const EdgeInsets.only(top: 16),
-          child: Text(
+          child: RtlText(
             message,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
@@ -59,7 +58,7 @@ class _LoadedMoves extends StatelessWidget {
     if (playable.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 16),
-        child: Text(
+        child: RtlText(
           AppStrings.noOptimalMovesMessage,
           style: Theme.of(context).textTheme.titleMedium,
         ),
@@ -70,7 +69,7 @@ class _LoadedMoves extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 16),
-        Text(
+        RtlText(
           AppStrings.optimalMovesTitle,
           style: Theme.of(context).textTheme.titleLarge,
         ),
@@ -115,7 +114,7 @@ class _MoveCard extends StatelessWidget {
     return Card(
       child: ExpansionTile(
         initiallyExpanded: index == 1,
-        title: Text(
+        title: RtlText(
           '${AppStrings.moveNumberLabel} $index — '
           '${move.tilesPlayedFromRack} ${AppStrings.tilesPlayedFromRackLabel}',
         ),
@@ -127,28 +126,28 @@ class _MoveCard extends StatelessWidget {
               children: [
                 MoveStepsList(steps: steps),
                 const SizedBox(height: 12),
-                Text(
+                RtlText(
                   AppStrings.beforeTableTitle,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
                 TableView(melds: stateBefore.tableMelds),
                 const SizedBox(height: 12),
-                Text(
+                RtlText(
                   AppStrings.beforeRackTitle,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
                 RackView(tiles: stateBefore.rack),
                 const Divider(height: 24),
-                Text(
+                RtlText(
                   AppStrings.finalTableTitle,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
                 TableView(melds: gameStateAfter.tableMelds),
                 const SizedBox(height: 12),
-                Text(
+                RtlText(
                   AppStrings.finalRackTitle,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/widgets/rtl_text.dart';
 import '../../../../core/utils/move_step_formatter.dart';
 import '../../../game_engine/domain/entities/move_step.dart';
 
@@ -20,7 +21,7 @@ class MoveStepsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
+        RtlText(
           AppStrings.moveStepsTitle,
           style: Theme.of(context).textTheme.titleSmall,
         ),
@@ -28,7 +29,7 @@ class MoveStepsList extends StatelessWidget {
         for (final label in labels)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Text(label),
+            child: RtlText(label),
           ),
       ],
     );

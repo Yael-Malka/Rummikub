@@ -1,7 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
-import '../../features/game_engine/domain/usecases/find_optimal_moves_use_case.dart';
 import '../../features/simulation/data/datasources/hive_session_storage.dart';
 import '../../features/simulation/data/repositories/game_state_repository_impl.dart';
 import '../../features/simulation/domain/usecases/generate_simulated_state_use_case.dart';
@@ -15,7 +14,6 @@ abstract final class AppProviders {
             GenerateSimulatedStateUseCase(
               GameStateRepositoryImpl(),
             ),
-            const FindOptimalMovesUseCase(),
             sessionStorage: HiveSessionStorage(),
           ),
         ),

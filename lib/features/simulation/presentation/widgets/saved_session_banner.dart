@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/widgets/rtl_text.dart';
 
 class SavedSessionBanner extends StatelessWidget {
   const SavedSessionBanner({super.key});
@@ -10,7 +11,7 @@ class SavedSessionBanner extends StatelessWidget {
     return Semantics(
       label: AppStrings.savedSessionBanner,
       child: MaterialBanner(
-        content: const Text(AppStrings.savedSessionBanner),
+        content: const RtlText(AppStrings.savedSessionBanner),
         leading: Icon(
           Icons.restore,
           color: Theme.of(context).colorScheme.primary,

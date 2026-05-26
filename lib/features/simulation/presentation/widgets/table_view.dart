@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/widgets/rtl_text.dart';
 import '../../domain/entities/meld.dart';
 import 'meld_row.dart';
 
@@ -13,9 +14,9 @@ class TableView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
+        RtlText(
           '${AppStrings.tableTitle} — ${melds.length} ${AppStrings.tableMeldsLabel}',
           style: Theme.of(context).textTheme.titleMedium,
         ),

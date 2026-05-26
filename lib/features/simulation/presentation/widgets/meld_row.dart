@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/widgets/rtl_text.dart';
 import '../../domain/entities/meld.dart';
 import '../../domain/entities/meld_type.dart';
 import 'tile_chip.dart';
@@ -21,9 +22,9 @@ class MeldRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          RtlText(
             typeLabel,
             style: Theme.of(context).textTheme.labelMedium,
           ),

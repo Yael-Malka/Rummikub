@@ -43,6 +43,8 @@ class SimulationLoadedContent extends StatelessWidget {
           AppSecondaryButton(
             label: AppStrings.showOptimalMovesButton,
             isEnabled: !isSearchingMoves,
+            isLoading: isSearchingMoves,
+            loadingLabel: AppStrings.computingOptimalMovesMessage,
             onPressed: viewModel.findOptimalMoves,
           ),
           OptimalMovesSection(

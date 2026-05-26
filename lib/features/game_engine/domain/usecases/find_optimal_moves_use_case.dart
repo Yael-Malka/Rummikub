@@ -2,7 +2,7 @@ import '../../../simulation/domain/entities/game_state.dart';
 import '../entities/move.dart';
 import '../move_solver.dart';
 
-/// Returns all moves that play the maximum number of rack tiles.
+/// All moves that play the most rack tiles this turn (ties included).
 final class FindOptimalMovesUseCase {
   const FindOptimalMovesUseCase();
 

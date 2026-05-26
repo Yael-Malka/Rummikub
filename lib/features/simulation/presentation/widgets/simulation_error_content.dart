@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/app_primary_button.dart';
+import '../../../../core/widgets/rtl_text.dart';
 import '../providers/simulation_view_model.dart';
 
 /// Error state with retry.
@@ -20,10 +21,10 @@ class SimulationErrorContent extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
+            RtlText(
               message,
-              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.error,
                   ),

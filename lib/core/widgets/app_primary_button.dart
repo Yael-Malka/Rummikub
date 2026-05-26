@@ -6,17 +6,25 @@ class AppPrimaryButton extends StatelessWidget {
     required this.onPressed,
     super.key,
     this.isEnabled = true,
+    this.isLoading = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool isEnabled;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return FilledButton(
-      onPressed: isEnabled ? onPressed : null,
-      child: Text(label),
+      onPressed: isEnabled && !isLoading ? onPressed : null,
+      child: isLoading
+          ? const SizedBox(
+              height: 22,
+              width: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(label),
     );
   }
 }

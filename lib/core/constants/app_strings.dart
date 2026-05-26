@@ -1,6 +1,32 @@
 /// Centralized UI strings (single source of truth).
 abstract final class AppStrings {
   static const String appTitle = 'Rummikub Assistant';
+
+  // Auth
+  static const String phoneNumberLabel = 'מספר טלפון';
+  static const String phoneHint = '0501234567';
+  static const String sendCodeButton = 'שלח קוד';
+  static const String otpPrompt = 'הזיני את הקוד שנשלח אלייך';
+  static const String verifyButton = 'אמת';
+  static const String resendCode = 'שלחי שוב קוד';
+  static const String invalidPhoneError =
+      'מספר טלפון לא תקין. הזיני 9–10 ספרות (למשל 0501234567)';
+  static const String invalidOtpError = 'הקוד חייב להכיל 6 ספרות';
+  static const String otpVerificationFailed = 'אימות הקוד נכשל. נסי שוב';
+  static const String genericAuthError =
+      'אירעה שגיאה. נסי שוב בעוד כמה רגעים';
+
+  static String resendCodeCountdown(int seconds) =>
+      'שלחי שוב קוד בעוד $seconds שניות';
+
+  // Logout
+  static const String logout = 'התנתק';
+  static const String logoutDialogTitle = 'להתנתק?';
+  static const String logoutDialogMessage =
+      'האם את בטוחה שברצונך להתנתק? מצטערים לראות אותך עוזבת, ונשמח לראותך שוב בקרוב!';
+  static const String logoutConfirm = 'כן, התנתק';
+  static const String logoutCancel = 'ביטול';
+
   static const String simulationScreenTitle = 'סימולציית משחק';
   static const String welcomeMessage =
       'לחצי על הכפתור להגרלת תושבת ושולחן אקראיים (חוקיים).';
@@ -15,6 +41,7 @@ abstract final class AppStrings {
   static const String retryButton = 'נסי שוב';
   static const String firstMeldToggleLabel = 'ריצוי ראשון (מינימום 30 נקודות)';
   static const String showOptimalMovesButton = 'הצג מהלכים אופטימליים';
+  static const String computingOptimalMovesMessage = 'מחשב מהלכים אופטימליים...';
   static const String optimalMovesTitle = 'מהלכים אופטימליים';
   static const String noOptimalMovesMessage = 'אין מהלך חוקי מהתושבת';
   static const String moveNumberLabel = 'מהלך';

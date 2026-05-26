@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/app_primary_button.dart';
+import '../../../../core/widgets/rtl_text.dart';
 import '../providers/simulation_view_model.dart';
 import 'how_to_use_card.dart';
 
@@ -19,9 +20,8 @@ class SimulationInitialContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          RtlText(
             AppStrings.welcomeMessage,
-            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 24),

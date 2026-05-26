@@ -1,4 +1,5 @@
 import '../../../core/constants/rules_constants.dart';
+import '../../../core/services/solver_logger.dart';
 import '../../simulation/domain/entities/meld.dart';
 import '../../simulation/domain/entities/meld_type.dart';
 import '../../simulation/domain/entities/tile.dart';
@@ -9,6 +10,8 @@ abstract final class MeldPartitioner {
   static List<List<Meld>> findAllPartitions(
     List<Tile> tiles, {
     int maxResults = 32,
+    bool Function()? shouldAbort,
+    void Function(int backtrackSteps)? onProgress,
   }) {
     if (tiles.isEmpty) {
       return [[]];
@@ -19,8 +22,18 @@ abstract final class MeldPartitioner {
 
     final results = <List<Meld>>[];
     final seen = <String>{};
+    var backtrackSteps = 0;
+    var aborted = false;
 
     void backtrack(List<Tile> remaining, List<Meld> built) {
+      backtrackSteps++;
+      onProgress?.call(backtrackSteps);
+
+      if (shouldAbort?.call() == true) {
+        aborted = true;
+        return;
+      }
+
       if (results.length >= maxResults) {
         return;
       }
@@ -33,7 +46,16 @@ abstract final class MeldPartitioner {
         return;
       }
 
-      for (final meld in _candidateMelds(remaining)) {
+      final candidates = _candidateMelds(remaining, shouldAbort: shouldAbort);
+      if (candidates.isEmpty) {
+        return;
+      }
+
+      for (final meld in candidates) {
+        if (shouldAbort?.call() == true) {
+          aborted = true;
+          return;
+        }
         final nextRemaining = _removeTiles(remaining, meld.tiles);
         if (nextRemaining.length != remaining.length - meld.tiles.length) {
           continue;
@@ -41,14 +63,28 @@ abstract final class MeldPartitioner {
         built.add(meld);
         backtrack(nextRemaining, built);
         built.removeLast();
+        if (aborted) {
+          return;
+        }
       }
     }
 
     backtrack(sorted, []);
+
+    if (aborted) {
+      SolverLogger.warn(
+        'Partition aborted | pool=${tiles.length} steps=$backtrackSteps '
+        'results=${results.length}',
+      );
+    }
+
     return results;
   }
 
-  static List<Meld> _candidateMelds(List<Tile> tiles) {
+  static List<Meld> _candidateMelds(
+    List<Tile> tiles, {
+    bool Function()? shouldAbort,
+  }) {
     final candidates = <Meld>[];
     final seen = <String>{};
 
@@ -63,7 +99,13 @@ abstract final class MeldPartitioner {
 
     final n = tiles.length;
     for (var size = RulesConstants.minMeldLength; size <= n; size++) {
+      if (shouldAbort?.call() == true) {
+        break;
+      }
       for (final combo in _combinations(tiles, size)) {
+        if (shouldAbort?.call() == true) {
+          break;
+        }
         addMeld(Meld(type: MeldType.group, tiles: combo));
         addMeld(Meld(type: MeldType.run, tiles: combo));
       }

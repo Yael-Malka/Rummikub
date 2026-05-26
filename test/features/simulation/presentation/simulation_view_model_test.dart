@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rummikub_app/features/game_engine/domain/usecases/find_optimal_moves_use_case.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/game_state.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld_type.dart';
@@ -68,7 +67,6 @@ SimulationViewModel _viewModel(
 }) {
   return SimulationViewModel(
     GenerateSimulatedStateUseCase(_FakeGameStateRepository(state)),
-    const FindOptimalMovesUseCase(),
     sessionStorage: sessionStorage ?? _FakeSessionStorage(),
   );
 }
@@ -101,7 +99,6 @@ void main() {
             shouldThrow: true,
           ),
         ),
-        const FindOptimalMovesUseCase(),
       );
 
       await viewModel.simulate();

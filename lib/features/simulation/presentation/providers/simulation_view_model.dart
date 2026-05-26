@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/services/session_storage.dart';
-import '../../../game_engine/domain/usecases/find_optimal_moves_use_case.dart';
+import '../../../../core/services/solver_logger.dart';
+import '../../domain/services/optimal_moves_computer.dart';
 import '../../data/models/saved_session.dart';
 import '../../domain/exceptions/state_generation_exception.dart';
 import '../../domain/usecases/generate_simulated_state_use_case.dart';
@@ -11,15 +12,13 @@ import '../state/simulation_state.dart';
 /// ViewModel for simulation flow.
 class SimulationViewModel extends ChangeNotifier {
   SimulationViewModel(
-    this._generateSimulatedState,
-    this._findOptimalMoves, {
+    this._generateSimulatedState, {
     SessionStorage? sessionStorage,
   }) : _sessionStorage = sessionStorage ?? const NoOpSessionStorage() {
     _restoreLastSession();
   }
 
   final GenerateSimulatedStateUseCase _generateSimulatedState;
-  final FindOptimalMovesUseCase _findOptimalMoves;
   final SessionStorage _sessionStorage;
 
   SimulationState _state = const SimulationInitial();
@@ -73,15 +72,20 @@ class SimulationViewModel extends ChangeNotifier {
     }
 
     _setOptimalMovesState(const OptimalMovesLoading());
-    await Future<void>.delayed(Duration.zero);
+    SolverLogger.info('UI: optimal-move search requested');
+    // Brief delay so loading UI paints before isolate work starts.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
 
     try {
-      final moves = _findOptimalMoves(
+      final moves = await OptimalMovesComputer.run(
         current.gameState,
         isFirstMeldTurn: _isFirstMeldTurn,
       );
+      SolverLogger.info('UI: search completed (${moves.length} moves)');
       _setOptimalMovesState(OptimalMovesLoaded(moves));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      SolverLogger.warn('UI: search failed — $error');
+      SolverLogger.warn('$stackTrace');
       _setOptimalMovesState(OptimalMovesError(error.toString()));
     }
   }
