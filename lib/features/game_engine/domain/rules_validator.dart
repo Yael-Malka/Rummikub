@@ -68,6 +68,15 @@ abstract final class RulesValidator {
     return pointsFromRack >= RulesConstants.initialMeldMinimumPoints;
   }
 
+  /// First meld: at least one rack tile played and 30+ points from those tiles.
+  static bool satisfiesFirstMeldPlay(Iterable<Tile> rackTilesPlayed) {
+    final played = rackTilesPlayed.toList();
+    if (played.isEmpty) {
+      return false;
+    }
+    return meetsInitialMeldRequirement(scoreTilesFromRack(played));
+  }
+
   static bool _isValidGroup(List<Tile> tiles) {
     if (tiles.length < RulesConstants.minMeldLength ||
         tiles.length > RulesConstants.maxGroupLength) {

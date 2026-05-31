@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rummikub_app/core/constants/rules_constants.dart';
-import 'package:rummikub_app/features/game_engine/domain/entities/move.dart';
 import 'package:rummikub_app/features/game_engine/domain/rules_validator.dart';
+import 'package:rummikub_app/features/game_engine/domain/entities/move.dart';
 import 'package:rummikub_app/features/game_engine/domain/set_cover_move_solver.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/game_state.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
@@ -15,6 +15,18 @@ void main() {
     return moves
         .map((m) => m.tilesPlayedFromRack)
         .reduce((a, b) => a > b ? a : b);
+  }
+
+  void expectEveryFirstMeldMoveValid(List<Move> moves) {
+    for (final move in moves) {
+      expect(move.tilesPlayedFromRack, greaterThan(0));
+      final played = move.finalTableMelds.expand((m) => m.tiles);
+      expect(
+        RulesValidator.satisfiesFirstMeldPlay(played),
+        isTrue,
+        reason: 'move must score 30+ from rack tiles played',
+      );
+    }
   }
 
   group('SetCoverMoveSolver — table with melds', () {
@@ -93,16 +105,61 @@ void main() {
 
         expect(moves, isNotEmpty);
         expect(maxTilesPlayed(moves), 3);
+        expectEveryFirstMeldMoveValid(moves);
         for (final move in moves) {
           expect(move.finalRack, isEmpty);
           expect(move.finalTableMelds.length, 1);
-          expect(
-            RulesValidator.scoreTilesFromRack(
-              move.finalTableMelds.expand((m) => m.tiles),
-            ),
-            greaterThanOrEqualTo(RulesConstants.initialMeldMinimumPoints),
-          );
         }
+      },
+    );
+
+    test(
+      'givenFirstMeld_whenMoreTilesStillMeet30_thenMaximizesTileCount',
+      () {
+        final state = GameState(
+          rack: [
+            regularTile(TileColor.red, 10),
+            regularTile(TileColor.red, 11),
+            regularTile(TileColor.red, 12),
+            regularTile(TileColor.red, 13),
+            regularTile(TileColor.blue, 1),
+          ],
+          tableMelds: const [],
+        );
+
+        final moves =
+            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+
+        expect(moves, isNotEmpty);
+        expect(maxTilesPlayed(moves), 4);
+        expectEveryFirstMeldMoveValid(moves);
+        expect(
+          moves.every((m) => m.finalRack.length == 1),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'givenFirstMeld_whenOnlySmallMeldMeets30_thenDoesNotPreferInvalidHighCount',
+      () {
+        final state = GameState(
+          rack: [
+            regularTile(TileColor.red, 10),
+            regularTile(TileColor.red, 11),
+            regularTile(TileColor.red, 12),
+            regularTile(TileColor.blue, 1),
+            regularTile(TileColor.black, 2),
+          ],
+          tableMelds: const [],
+        );
+
+        final moves =
+            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+
+        expect(moves, isNotEmpty);
+        expect(maxTilesPlayed(moves), 3);
+        expectEveryFirstMeldMoveValid(moves);
       },
     );
 

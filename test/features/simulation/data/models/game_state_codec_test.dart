@@ -13,6 +13,7 @@ void main() {
     test('givenSession_whenRoundTrip_thenEquals', () {
       final session = SavedSession(
         isFirstMeldTurn: true,
+        emptyTable: true,
         gameState: GameState(
           rack: [regularTile(TileColor.red, 3), jokerTile()],
           tableMelds: [
@@ -33,6 +34,7 @@ void main() {
 
       expect(decoded, isNotNull);
       expect(decoded!.isFirstMeldTurn, isTrue);
+      expect(decoded.emptyTable, isTrue);
       expect(
         decoded.gameState.usedTileIds,
         session.gameState.usedTileIds,

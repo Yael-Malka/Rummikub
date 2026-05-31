@@ -45,7 +45,10 @@ abstract final class SetCoverMoveSolver {
     return search.run();
   }
 
-  /// Empty table: lay out the whole rack into new melds.
+  /// Empty table: play as many rack tiles as possible into new melds.
+  ///
+  /// Partial layouts are valid (tiles may remain on the rack). On a first-meld
+  /// turn only layouts scoring 30+ from played rack tiles are kept.
   static List<Move> _solveOpeningFromRackOnly({
     required List<Tile> rack,
     required bool isFirstMeldTurn,
@@ -57,64 +60,94 @@ abstract final class SetCoverMoveSolver {
     var bestRackTilesPlayed = -1;
     final bestMoves = <Move>[];
 
-    void exploreLayouts(List<Meld> layout, Set<TileId> tilesInLayout) {
+    void saveLayoutIfValid(List<Meld> layout, Set<TileId> tilesInLayout) {
+      final count = tilesInLayout.length;
+      if (count == 0) {
+        return;
+      }
+
+      final playedFromRack = layout.expand((m) => m.tiles);
+      if (isFirstMeldTurn) {
+        final points = RulesValidator.scoreTilesFromRack(playedFromRack);
+        if (!RulesValidator.meetsInitialMeldRequirement(points)) {
+          return;
+        }
+      }
+
+      final rackLeft =
+          rack.where((t) => !tilesInLayout.contains(t.id)).toList();
+      final result = GameState(
+        rack: rackLeft,
+        tableMelds: List.unmodifiable(layout.map(cloneMeld)),
+      );
+      if (!RulesValidator.validateGameState(result).isValid) {
+        return;
+      }
+
+      final move = Move(
+        tilesPlayedFromRack: count,
+        finalTableMelds: result.tableMelds,
+        finalRack: rackLeft,
+      );
+
+      if (count > bestRackTilesPlayed) {
+        bestRackTilesPlayed = count;
+        bestMoves
+          ..clear()
+          ..add(move);
+      } else if (count == bestRackTilesPlayed && !bestMoves.contains(move)) {
+        bestMoves.add(move);
+      }
+    }
+
+    void exploreLayouts(
+      List<Meld> layout,
+      Set<TileId> tilesInLayout,
+      int nextRackIndex,
+    ) {
       if (stopwatch.elapsed >= timeout) {
         return;
       }
 
-      if (tilesInLayout.length == rack.length) {
-        final played = layout.expand((m) => m.tiles).toList();
-        if (isFirstMeldTurn) {
-          final points = RulesValidator.scoreTilesFromRack(played);
-          if (!RulesValidator.meetsInitialMeldRequirement(points)) {
-            return;
+      saveLayoutIfValid(layout, tilesInLayout);
+
+      final remainingOnRack = rack.length - tilesInLayout.length;
+      if (tilesInLayout.length + remainingOnRack <= bestRackTilesPlayed) {
+        return;
+      }
+
+      while (nextRackIndex < rack.length) {
+        final tile = rack[nextRackIndex];
+        nextRackIndex++;
+
+        if (tilesInLayout.contains(tile.id)) {
+          continue;
+        }
+
+        // Leave [tile] on the rack and decide later tiles without using it.
+        exploreLayouts(layout, tilesInLayout, nextRackIndex);
+
+        for (final meld in legalMelds) {
+          if (!meld.tiles.any((t) => t.id == tile.id)) {
+            continue;
+          }
+          if (!meldIsDisjointFrom(meld, tilesInLayout)) {
+            continue;
+          }
+
+          for (final meldTile in meld.tiles) {
+            tilesInLayout.add(meldTile.id);
+          }
+          exploreLayouts([...layout, meld], tilesInLayout, nextRackIndex);
+          for (final meldTile in meld.tiles) {
+            tilesInLayout.remove(meldTile.id);
           }
         }
-
-        final move = Move(
-          tilesPlayedFromRack: played.length,
-          finalTableMelds: layout,
-          finalRack: const [],
-        );
-
-        if (played.length > bestRackTilesPlayed) {
-          bestRackTilesPlayed = played.length;
-          bestMoves
-            ..clear()
-            ..add(move);
-        } else if (played.length == bestRackTilesPlayed &&
-            !bestMoves.contains(move)) {
-          bestMoves.add(move);
-        }
         return;
-      }
-
-      final stillFree = rack.where((t) => !tilesInLayout.contains(t.id)).toList();
-      if (stillFree.isEmpty) {
-        return;
-      }
-
-      // Anchor on the first free tile so we do not explore the same layout twice.
-      final anchorId = stillFree.first.id;
-      for (final meld in legalMelds) {
-        if (!meld.tiles.any((t) => t.id == anchorId)) {
-          continue;
-        }
-        if (!meldIsDisjointFrom(meld, tilesInLayout)) {
-          continue;
-        }
-
-        for (final tile in meld.tiles) {
-          tilesInLayout.add(tile.id);
-        }
-        exploreLayouts([...layout, meld], tilesInLayout);
-        for (final tile in meld.tiles) {
-          tilesInLayout.remove(tile.id);
-        }
       }
     }
 
-    exploreLayouts([], {});
+    exploreLayouts([], {}, 0);
     return bestMoves;
   }
 
@@ -217,6 +250,9 @@ final class _TableCoveringSearch {
     for (final tableTileId in _tableTileIds) {
       if ((_meldsTouchingTableTile[tableTileId] ?? []).isEmpty) {
         SolverLogger.warn('No legal meld covers table tile $tableTileId');
+        if (isFirstMeldTurn) {
+          return const [];
+        }
         return SetCoverMoveSolver._passWithoutPlaying(state, rack);
       }
     }
@@ -224,6 +260,10 @@ final class _TableCoveringSearch {
     coverRemainingTable();
 
     if (_bestMoves.isEmpty) {
+      if (isFirstMeldTurn) {
+        SolverLogger.warn('No valid first-meld move (30+ and rack play)');
+        return const [];
+      }
       final fallback = SetCoverMoveSolver._passWithoutPlaying(state, rack);
       if (fallback.isNotEmpty) {
         SolverLogger.warn('Search found nothing — keeping table as-is');
@@ -325,11 +365,9 @@ final class _TableCoveringSearch {
 
     final count = rackTilesPlayed.length;
 
-    if (isFirstMeldTurn && count > 0) {
-      final points = RulesValidator.scoreTilesFromRack(rackTilesPlayed);
-      if (!RulesValidator.meetsInitialMeldRequirement(points)) {
-        return;
-      }
+    if (isFirstMeldTurn &&
+        !RulesValidator.satisfiesFirstMeldPlay(rackTilesPlayed)) {
+      return;
     }
 
     final rackLeft = rack

@@ -16,7 +16,7 @@ import 'test_app.dart';
 
 final class _WidgetTestRepository implements GameStateRepository {
   @override
-  GameState generateSimulatedState() {
+  GameState generateSimulatedState({bool emptyTable = false}) {
     return GameState(
       rack: [regularTile(TileColor.orange, 8)],
       tableMelds: [

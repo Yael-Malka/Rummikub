@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rummikub_app/core/constants/rules_constants.dart';
 import 'package:rummikub_app/features/game_engine/domain/move_solver.dart';
+import 'package:rummikub_app/features/game_engine/domain/rules_validator.dart';
 import 'package:rummikub_app/features/game_engine/domain/usecases/find_optimal_moves_use_case.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/game_state.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
@@ -79,11 +81,7 @@ void main() {
 
       final moves = useCase(state, isFirstMeldTurn: true);
 
-      for (final move in moves) {
-        if (move.tilesPlayedFromRack > 0) {
-          expect(move.tilesPlayedFromRack, 0);
-        }
-      }
+      expect(moves, isEmpty);
     });
 
     test('givenFirstMeldAbove30_whenSolved_thenAllowsMove', () {
@@ -107,7 +105,27 @@ void main() {
 
       final moves = useCase(state, isFirstMeldTurn: true);
 
-      expect(moves.any((m) => m.tilesPlayedFromRack > 0), isTrue);
+      expect(moves, isNotEmpty);
+      final maxPlayed =
+          moves.map((m) => m.tilesPlayedFromRack).reduce((a, b) => a > b ? a : b);
+      expect(maxPlayed, 3);
+      for (final move in moves) {
+        expect(move.tilesPlayedFromRack, maxPlayed);
+        final rackPlayed = [
+          for (final meld in move.finalTableMelds)
+            ...meld.tiles.where(
+              (t) => state.rack.any((r) => r.id == t.id),
+            ),
+        ];
+        expect(
+          RulesValidator.satisfiesFirstMeldPlay(rackPlayed),
+          isTrue,
+        );
+        expect(
+          RulesValidator.scoreTilesFromRack(rackPlayed),
+          greaterThanOrEqualTo(RulesConstants.initialMeldMinimumPoints),
+        );
+      }
     });
 
     test('givenMultipleOptimal_whenSolved_thenAllHaveSameMax', () {

@@ -11,6 +11,7 @@ abstract final class GameStateCodec {
   static Map<String, dynamic> encodeSession(SavedSession session) {
     return {
       'isFirstMeldTurn': session.isFirstMeldTurn,
+      'emptyTable': session.emptyTable,
       'gameState': encodeState(session.gameState),
     };
   }
@@ -27,6 +28,7 @@ abstract final class GameStateCodec {
     return SavedSession(
       gameState: gameState,
       isFirstMeldTurn: json['isFirstMeldTurn'] == true,
+      emptyTable: json['emptyTable'] == true,
     );
   }
 

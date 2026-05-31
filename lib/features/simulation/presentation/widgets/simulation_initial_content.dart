@@ -6,6 +6,7 @@ import '../../../../core/widgets/app_primary_button.dart';
 import '../../../../core/widgets/rtl_text.dart';
 import '../providers/simulation_view_model.dart';
 import 'how_to_use_card.dart';
+import 'simulation_options_panel.dart';
 
 /// Welcome state with simulate action.
 class SimulationInitialContent extends StatelessWidget {
@@ -26,6 +27,8 @@ class SimulationInitialContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           const HowToUseCard(),
+          const SizedBox(height: 16),
+          const SimulationOptionsPanel(),
           const SizedBox(height: 24),
           AppPrimaryButton(
             label: AppStrings.simulateButton,

@@ -16,7 +16,7 @@ final class _FakeGameStateRepository implements GameStateRepository {
   final GameState _state;
 
   @override
-  GameState generateSimulatedState() => _state;
+  GameState generateSimulatedState({bool emptyTable = false}) => _state;
 }
 
 void main() {

@@ -19,8 +19,11 @@ final class _FakeGameStateRepository implements GameStateRepository {
   final GameState _state;
   final bool shouldThrow;
 
+  var lastEmptyTable = false;
+
   @override
-  GameState generateSimulatedState() {
+  GameState generateSimulatedState({bool emptyTable = false}) {
+    lastEmptyTable = emptyTable;
     if (shouldThrow) {
       throw Exception('repository failure');
     }
@@ -127,6 +130,19 @@ void main() {
       viewModel.setFirstMeldTurn(true);
 
       expect(viewModel.isFirstMeldTurn, isTrue);
+    });
+
+    test('givenEmptyTableToggle_whenSimulate_thenPassesFlagToGenerator', () async {
+      final repo = _FakeGameStateRepository(_validGameState());
+      final viewModel = SimulationViewModel(
+        GenerateSimulatedStateUseCase(repo),
+      );
+
+      viewModel.setEmptyTable(true);
+      await viewModel.simulate();
+
+      expect(repo.lastEmptyTable, isTrue);
+      expect(viewModel.emptyTable, isTrue);
     });
 
     test('givenNewSimulation_whenSimulate_thenResetsFirstMeldToggle', () async {

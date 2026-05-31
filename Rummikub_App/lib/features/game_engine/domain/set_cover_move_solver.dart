@@ -45,7 +45,7 @@ abstract final class SetCoverMoveSolver {
     return search.run();
   }
 
-  /// Empty table: lay out the whole rack into new melds.
+  /// Empty table: play as many rack tiles as possible into new melds.
   static List<Move> _solveOpeningFromRackOnly({
     required List<Tile> rack,
     required bool isFirstMeldTurn,
@@ -57,40 +57,61 @@ abstract final class SetCoverMoveSolver {
     var bestRackTilesPlayed = -1;
     final bestMoves = <Move>[];
 
+    void saveLayoutIfValid(List<Meld> layout, Set<TileId> tilesInLayout) {
+      final count = tilesInLayout.length;
+      if (count == 0) {
+        return;
+      }
+
+      final playedFromRack = layout.expand((m) => m.tiles);
+      if (isFirstMeldTurn) {
+        final points = RulesValidator.scoreTilesFromRack(playedFromRack);
+        if (!RulesValidator.meetsInitialMeldRequirement(points)) {
+          return;
+        }
+      }
+
+      final rackLeft =
+          rack.where((t) => !tilesInLayout.contains(t.id)).toList();
+      final result = GameState(
+        rack: rackLeft,
+        tableMelds: List.unmodifiable(layout.map(cloneMeld)),
+      );
+      if (!RulesValidator.validateGameState(result).isValid) {
+        return;
+      }
+
+      final move = Move(
+        tilesPlayedFromRack: count,
+        finalTableMelds: result.tableMelds,
+        finalRack: rackLeft,
+      );
+
+      if (count > bestRackTilesPlayed) {
+        bestRackTilesPlayed = count;
+        bestMoves
+          ..clear()
+          ..add(move);
+      } else if (count == bestRackTilesPlayed && !bestMoves.contains(move)) {
+        bestMoves.add(move);
+      }
+    }
+
     void exploreLayouts(List<Meld> layout, Set<TileId> tilesInLayout) {
       if (stopwatch.elapsed >= timeout) {
         return;
       }
 
-      if (tilesInLayout.length == rack.length) {
-        final played = layout.expand((m) => m.tiles).toList();
-        if (isFirstMeldTurn) {
-          final points = RulesValidator.scoreTilesFromRack(played);
-          if (!RulesValidator.meetsInitialMeldRequirement(points)) {
-            return;
-          }
-        }
+      saveLayoutIfValid(layout, tilesInLayout);
 
-        final move = Move(
-          tilesPlayedFromRack: played.length,
-          finalTableMelds: layout,
-          finalRack: const [],
-        );
-
-        if (played.length > bestRackTilesPlayed) {
-          bestRackTilesPlayed = played.length;
-          bestMoves
-            ..clear()
-            ..add(move);
-        } else if (played.length == bestRackTilesPlayed &&
-            !bestMoves.contains(move)) {
-          bestMoves.add(move);
-        }
+      final stillFree =
+          rack.where((t) => !tilesInLayout.contains(t.id)).toList();
+      if (stillFree.isEmpty) {
         return;
       }
 
-      final stillFree = rack.where((t) => !tilesInLayout.contains(t.id)).toList();
-      if (stillFree.isEmpty) {
+      final rackTilesUsed = tilesInLayout.length;
+      if (rackTilesUsed + stillFree.length <= bestRackTilesPlayed) {
         return;
       }
 

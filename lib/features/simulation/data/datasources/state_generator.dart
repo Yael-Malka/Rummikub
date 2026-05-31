@@ -23,11 +23,11 @@ final class StateGenerator {
     TileColor.orange,
   ];
 
-  GameState generate() {
+  GameState generate({bool emptyTable = false}) {
     for (var attempt = 0;
         attempt < SimulationConstants.maxGenerationAttempts;
         attempt++) {
-      final state = _tryGenerateOnce();
+      final state = _tryGenerateOnce(emptyTable: emptyTable);
       if (RulesValidator.validateGameState(state).isValid) {
         return state;
       }
@@ -38,31 +38,33 @@ final class StateGenerator {
     );
   }
 
-  GameState _tryGenerateOnce() {
+  GameState _tryGenerateOnce({required bool emptyTable}) {
     final pool = List<Tile>.from(FullDeck.create())..shuffle(_random);
 
-    final meldCount = SimulationConstants.minTableMelds +
-        _random.nextInt(
-          SimulationConstants.maxTableMelds -
-              SimulationConstants.minTableMelds +
-              1,
-        );
-
     final tableMelds = <Meld>[];
-    for (var i = 0; i < meldCount; i++) {
-      final meld = _random.nextBool()
-          ? _tryBuildGroup(pool)
-          : _tryBuildRun(pool);
-      if (meld == null) {
-        break;
-      }
-      tableMelds.add(meld);
-    }
+    if (!emptyTable) {
+      final meldCount = SimulationConstants.minTableMelds +
+          _random.nextInt(
+            SimulationConstants.maxTableMelds -
+                SimulationConstants.minTableMelds +
+                1,
+          );
 
-    if (tableMelds.isEmpty) {
-      final fallback = _tryBuildGroup(pool) ?? _tryBuildRun(pool);
-      if (fallback != null) {
-        tableMelds.add(fallback);
+      for (var i = 0; i < meldCount; i++) {
+        final meld = _random.nextBool()
+            ? _tryBuildGroup(pool)
+            : _tryBuildRun(pool);
+        if (meld == null) {
+          break;
+        }
+        tableMelds.add(meld);
+      }
+
+      if (tableMelds.isEmpty) {
+        final fallback = _tryBuildGroup(pool) ?? _tryBuildRun(pool);
+        if (fallback != null) {
+          tableMelds.add(fallback);
+        }
       }
     }
 

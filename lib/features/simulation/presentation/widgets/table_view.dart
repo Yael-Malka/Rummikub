@@ -21,7 +21,15 @@ class TableView extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        for (final meld in melds) MeldRow(meld: meld),
+        if (melds.isEmpty)
+          RtlText(
+            AppStrings.emptyTableHint,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          )
+        else
+          for (final meld in melds) MeldRow(meld: meld),
       ],
     );
   }

@@ -29,8 +29,12 @@ abstract final class AppStrings {
 
   static const String simulationScreenTitle = 'סימולציית משחק';
   static const String welcomeMessage =
-      'לחצי על הכפתור להגרלת תושבת ושולחן אקראיים (חוקיים).';
+      'בחרי אפשרויות ולחצי «סימולציית מצב» להגרלת תושבת (ושולחן, אם לא בחרת שולחן ריק).';
   static const String simulateButton = 'סימולציית מצב';
+  static const String emptyTableToggleLabel = 'שולחן ריק (פתיחה / מלד ראשון)';
+  static const String emptyTableToggleSubtitle =
+      'מגריל רק תושבת — ללא סטים על השולחן';
+  static const String emptyTableHint = 'אין סטים על השולחן';
   static const String rackTitle = 'תושבת';
   static const String tableTitle = 'שולחן';
   static const String rackCountLabel = 'אבנים בתושבת';
@@ -59,7 +63,8 @@ abstract final class AppStrings {
   static const String savedSessionBanner =
       'נטען מצב משחק אחרון שנשמר במכשיר';
   static const String howToTitle = 'איך משתמשים';
-  static const String howToStep1 = '1. לחצי «סימולציית מצב» להגרלת תושבת ושולחן.';
+  static const String howToStep1 =
+      '1. הפעילי «שולחן ריק» לפתיחה, או השאירי כבוי להגרלת שולחן אקראי — ואז «סימולציית מצב».';
   static const String howToStep2 =
       '2. הפעילי «ריצוי ראשון» אם זה התור הראשון שלך (30+ נקודות).';
   static const String howToStep3 = '3. לחצי «הצג מהלכים אופטימליים» לראות את כל המהלכים הטובים ביותר.';

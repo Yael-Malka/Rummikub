@@ -10,6 +10,7 @@ import '../state/optimal_moves_state.dart';
 import 'optimal_moves_section.dart';
 import 'rack_view.dart';
 import 'saved_session_banner.dart';
+import 'simulation_options_panel.dart';
 import 'table_view.dart';
 
 /// Displays a simulated rack and table.
@@ -34,6 +35,7 @@ class SimulationLoadedContent extends StatelessWidget {
           const SizedBox(height: 24),
           TableView(melds: gameState.tableMelds),
           const SizedBox(height: 16),
+          SimulationOptionsPanel(disableControls: isSearchingMoves),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text(AppStrings.firstMeldToggleLabel),

@@ -24,6 +24,7 @@ class SimulationViewModel extends ChangeNotifier {
   SimulationState _state = const SimulationInitial();
   OptimalMovesState _optimalMovesState = const OptimalMovesIdle();
   bool _isFirstMeldTurn = false;
+  bool _emptyTable = false;
   bool _wasSessionRestored = false;
 
   SimulationState get state => _state;
@@ -32,7 +33,21 @@ class SimulationViewModel extends ChangeNotifier {
 
   bool get isFirstMeldTurn => _isFirstMeldTurn;
 
+  bool get emptyTable => _emptyTable;
+
   bool get wasSessionRestored => _wasSessionRestored;
+
+  void setEmptyTable(bool value) {
+    if (_emptyTable == value) {
+      return;
+    }
+    _emptyTable = value;
+    if (value) {
+      _isFirstMeldTurn = true;
+    }
+    _resetOptimalMoves();
+    notifyListeners();
+  }
 
   void setFirstMeldTurn(bool value) {
     if (_isFirstMeldTurn == value) {
@@ -46,16 +61,19 @@ class SimulationViewModel extends ChangeNotifier {
   Future<void> simulate() async {
     _resetOptimalMoves();
     _wasSessionRestored = false;
-    _isFirstMeldTurn = false;
+    if (!_emptyTable) {
+      _isFirstMeldTurn = false;
+    }
     _setState(const SimulationLoading());
 
     try {
-      final gameState = _generateSimulatedState();
+      final gameState = _generateSimulatedState(emptyTable: _emptyTable);
       _setState(SimulationLoaded(gameState));
       await _sessionStorage.saveLastSession(
         SavedSession(
           gameState: gameState,
-          isFirstMeldTurn: false,
+          isFirstMeldTurn: _isFirstMeldTurn,
+          emptyTable: _emptyTable,
         ),
       );
     } on StateGenerationException catch (error) {
@@ -96,6 +114,7 @@ class SimulationViewModel extends ChangeNotifier {
       return;
     }
     _isFirstMeldTurn = saved.isFirstMeldTurn;
+    _emptyTable = saved.emptyTable;
     _wasSessionRestored = true;
     _setState(SimulationLoaded(saved.gameState));
   }

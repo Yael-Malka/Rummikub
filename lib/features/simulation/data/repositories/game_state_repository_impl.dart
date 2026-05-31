@@ -9,5 +9,6 @@ final class GameStateRepositoryImpl implements GameStateRepository {
   final StateGenerator _generator;
 
   @override
-  GameState generateSimulatedState() => _generator.generate();
+  GameState generateSimulatedState({bool emptyTable = false}) =>
+      _generator.generate(emptyTable: emptyTable);
 }

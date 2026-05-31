@@ -9,8 +9,8 @@ final class GenerateSimulatedStateUseCase {
 
   final GameStateRepository _repository;
 
-  GameState call() {
-    final state = _repository.generateSimulatedState();
+  GameState call({bool emptyTable = false}) {
+    final state = _repository.generateSimulatedState(emptyTable: emptyTable);
     final validation = RulesValidator.validateGameState(state);
 
     if (!validation.isValid) {

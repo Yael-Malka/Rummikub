@@ -50,5 +50,14 @@ void main() {
 
       expect(state.allTiles.length, lessThanOrEqualTo(FullDeck.tileCount));
     });
+
+    test('givenEmptyTableFlag_whenGenerate_thenTableHasNoMelds', () {
+      final generator = StateGenerator(random: Random(42));
+      final state = generator.generate(emptyTable: true);
+
+      expect(RulesValidator.validateGameState(state).isValid, isTrue);
+      expect(state.tableMelds, isEmpty);
+      expect(state.rackSize, greaterThanOrEqualTo(SimulationConstants.minRackSize));
+    });
   });
 }
