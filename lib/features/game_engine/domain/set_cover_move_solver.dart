@@ -288,7 +288,7 @@ final class _TableCoveringSearch {
 
   bool get _ranTooLong => _stopwatch.elapsed >= timeout;
 
-  /// Phase 1 — every table tile must land in exactly one meld.
+  /// Phase 1 — cover every table tile (MRV order; prune when no valid meld).
   void coverRemainingTable() {
     _nodesExplored++;
     if (_ranTooLong) {
@@ -296,9 +296,13 @@ final class _TableCoveringSearch {
       return;
     }
 
-    final nextTableTile = _firstUncoveredTableTile();
-    if (nextTableTile == null) {
+    if (!_hasUncoveredTableTile()) {
       tryAddMeldsFromRack();
+      return;
+    }
+
+    final nextTableTile = _mostConstrainedUncoveredTableTile();
+    if (nextTableTile == null) {
       return;
     }
 
@@ -350,13 +354,48 @@ final class _TableCoveringSearch {
     }
   }
 
-  TileId? _firstUncoveredTableTile() {
+  bool _hasUncoveredTableTile() {
     for (final tile in tableTiles) {
       if (!_takenTileIds.contains(tile.id)) {
-        return tile.id;
+        return true;
       }
     }
-    return null;
+    return false;
+  }
+
+  int _countValidMeldsForTableTile(TileId tableTileId) {
+    var count = 0;
+    for (final meldIndex in _meldsTouchingTableTile[tableTileId] ?? const []) {
+      final meld = _legalMelds[meldIndex];
+      if (SetCoverMoveSolver.meldIsDisjointFrom(meld, _takenTileIds)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /// Uncovered table tile with fewest valid covering melds (MRV).
+  ///
+  /// Tie-break: earliest in [tableTiles]. Returns null to prune when some
+  /// uncovered tile has zero valid melds. Call [_hasUncoveredTableTile] first.
+  TileId? _mostConstrainedUncoveredTableTile() {
+    TileId? chosen;
+    var minCount = 1 << 30;
+
+    for (final tile in tableTiles) {
+      if (_takenTileIds.contains(tile.id)) {
+        continue;
+      }
+      final validCount = _countValidMeldsForTableTile(tile.id);
+      if (validCount == 0) {
+        return null;
+      }
+      if (validCount < minCount) {
+        minCount = validCount;
+        chosen = tile.id;
+      }
+    }
+    return chosen;
   }
 
   int _countRackTilesInLayout() {
