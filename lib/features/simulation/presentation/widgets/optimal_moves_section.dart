@@ -4,12 +4,11 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/computing_indicator.dart';
 import '../../../../core/widgets/rtl_text.dart';
 import '../../../game_engine/domain/entities/move.dart';
-import '../../../game_engine/domain/move_steps_builder.dart';
+import '../../../game_engine/domain/move_explanation_builder.dart';
 import '../../domain/entities/game_state.dart';
 import '../state/optimal_moves_state.dart';
-import 'move_steps_list.dart';
-import 'rack_view.dart';
-import 'table_view.dart';
+import 'before_move_snapshot.dart';
+import 'move_explanation_panel.dart';
 
 class OptimalMovesSection extends StatelessWidget {
   const OptimalMovesSection({
@@ -41,8 +40,7 @@ class OptimalMovesSection extends StatelessWidget {
   }
 }
 
-/// One entry per visible end state (tiles on table + rack), ignoring
-/// meld grouping and physical deck copies.
+/// One entry per visible end state (tiles on table + rack).
 List<Move> _uniqueVisibleOutcomes(Iterable<Move> moves) {
   final seen = <String>{};
   final unique = <Move>[];
@@ -88,6 +86,13 @@ class _LoadedMoves extends StatelessWidget {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 12),
+        BeforeMoveSnapshot(stateBefore: stateBefore),
+        const SizedBox(height: 16),
+        RtlText(
+          AppStrings.optimalMovesPickMoveHint,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -119,8 +124,7 @@ class _MoveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gameStateAfter = move.toGameState();
-    final steps = MoveStepsBuilder.buildSteps(
+    final explanation = MoveExplanationBuilder.build(
       stateBefore: stateBefore,
       move: move,
     );
@@ -135,40 +139,7 @@ class _MoveCard extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                MoveStepsList(steps: steps),
-                const SizedBox(height: 12),
-                RtlText(
-                  AppStrings.beforeTableTitle,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                TableView(melds: stateBefore.tableMelds),
-                const SizedBox(height: 12),
-                RtlText(
-                  AppStrings.beforeRackTitle,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                RackView(tiles: stateBefore.rack),
-                const Divider(height: 24),
-                RtlText(
-                  AppStrings.finalTableTitle,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                TableView(melds: gameStateAfter.tableMelds),
-                const SizedBox(height: 12),
-                RtlText(
-                  AppStrings.finalRackTitle,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                RackView(tiles: gameStateAfter.rack),
-              ],
-            ),
+            child: MoveExplanationPanel(explanation: explanation),
           ),
         ],
       ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/rtl_text.dart';
+import '../../../game_engine/domain/entities/move_explanation.dart';
+import '../../../game_engine/domain/joker_role_inferrer.dart';
 import '../../domain/entities/meld.dart';
 import 'meld_row.dart';
 
@@ -29,7 +31,14 @@ class TableView extends StatelessWidget {
                 ),
           )
         else
-          for (final meld in melds) MeldRow(meld: meld),
+          for (final meld in melds)
+            MeldRow(
+              explained: ExplainedMeld(
+                meld: meld,
+                jokerRoles: JokerRoleInferrer.forMeld(meld),
+              ),
+              highlightedTileIds: const {},
+            ),
       ],
     );
   }

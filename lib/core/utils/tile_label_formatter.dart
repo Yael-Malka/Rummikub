@@ -8,7 +8,11 @@ abstract final class TileLabelFormatter {
     if (tile.isJoker) {
       return AppStrings.jokerTileName;
     }
-    return '${_colorName(tile.color!)} ${tile.number}';
+    return formatTileLabel(tile.color!, tile.number!);
+  }
+
+  static String formatTileLabel(TileColor color, int number) {
+    return '${_colorName(color)} $number';
   }
 
   static String formatTiles(Iterable<Tile> tiles) {

@@ -47,6 +47,8 @@ abstract final class AppStrings {
   static const String showOptimalMovesButton = 'הצג מהלכים אופטימליים';
   static const String computingOptimalMovesMessage = 'מחשב מהלכים אופטימליים...';
   static const String optimalMovesTitle = 'מהלכים אופטימליים';
+  static const String optimalMovesBeforeStateTitle = 'מצב לפני המהלך';
+  static const String optimalMovesPickMoveHint = 'בחר מהלך לראות את השולחן אחרי:';
   static const String noOptimalMovesMessage = 'אין מהלך חוקי מהתושבת';
   static const String moveNumberLabel = 'מהלך';
   static const String tilesPlayedFromRackLabel = 'אבנים מהתושבת';
@@ -54,7 +56,16 @@ abstract final class AppStrings {
   static const String finalTableTitle = 'שולחן אחרי המהלך';
   static const String beforeRackTitle = 'תושבת לפני המהלך';
   static const String beforeTableTitle = 'שולחן לפני המהלך';
-  static const String moveStepsTitle = 'צעדי המהלך';
+  static const String moveStepsTitle = 'מה עשינו';
+  static const String moveSummaryTitle = 'סיכום';
+  static const String moveBeforeAfterTitle = 'לפני / אחרי';
+  static const String moveSummaryRackEmpty = 'התושבת התרוקנה';
+  static String moveSummaryRackRemaining(int count) =>
+      'נשארו $count אבנים בתושבת';
+  static const String rackPlayedBadge = 'מהתושבת';
+  static const String moveSummaryPlayedLabel = 'ירדו מהתושבת';
+  static const String moveShowTextSteps = 'הסבר מילולי (צעדים)';
+  static const String moveHideTextSteps = 'הסתר הסבר מילולי';
   static const String jokerTileName = "ג'וקר";
   static const String colorRed = 'אדום';
   static const String colorBlue = 'כחול';
@@ -69,11 +80,18 @@ abstract final class AppStrings {
       '2. הפעילי «ריצוי ראשון» אם זה התור הראשון שלך (30+ נקודות).';
   static const String howToStep3 = '3. לחצי «הצג מהלכים אופטימליים» לראות את כל המהלכים הטובים ביותר.';
   static const String howToStep4 =
-      '4. בכל מהלך מוצגים צעדים, לפני ואחרי — כולל פירוק ובנייה מחדש של סטים.';
+      '4. מצב לפני המהלך מוצג פעם אחת; בחר מהלך לראות את השולחן אחרי.';
 
-  static String moveStepPlayFromRack(String tiles) =>
-      'הניחי מהתושבת על השולחן: $tiles';
+  static String moveStepBreakMeld(int step, String meldLabel) =>
+      '$step. פרק את הסט: $meldLabel';
 
-  static String moveStepReorganizeTable(int meldsBefore, int meldsAfter) =>
-      'סידור מחדש של השולחן: מ-$meldsBefore ל-$meldsAfter סטים חוקיים';
+  static String moveStepBuildMeld(int step, String meldLabel) =>
+      '$step. בנה סט חדש: $meldLabel';
+
+  static String moveStepExtendMeld(
+    int step,
+    String addedTiles,
+    String meldLabel,
+  ) =>
+      '$step. הוסף $addedTiles לסט: $meldLabel';
 }
