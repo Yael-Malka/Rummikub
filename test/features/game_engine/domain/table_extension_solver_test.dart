@@ -92,7 +92,8 @@ void main() {
         ],
       );
 
-      final moves = MoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+      final moves =
+          MoveSolver.findOptimalMoves(state, isFirstMeldTurn: false).moves;
       final maxPlayed =
           moves.map((m) => m.tilesPlayedFromRack).fold(0, (a, b) => a > b ? a : b);
 

@@ -9,6 +9,7 @@ import '../../domain/entities/game_state.dart';
 import '../state/optimal_moves_state.dart';
 import 'before_move_snapshot.dart';
 import 'move_explanation_panel.dart';
+import 'search_timeout_banner.dart';
 
 class OptimalMovesSection extends StatelessWidget {
   const OptimalMovesSection({
@@ -32,8 +33,10 @@ class OptimalMovesSection extends StatelessWidget {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ),
-      OptimalMovesLoaded(:final moves) => _LoadedMoves(
+      OptimalMovesLoaded(:final moves, :final searchTimedOut) =>
+        _LoadedMoves(
           moves: moves,
+          searchTimedOut: searchTimedOut,
           stateBefore: stateBefore,
         ),
     };
@@ -55,10 +58,12 @@ List<Move> _uniqueVisibleOutcomes(Iterable<Move> moves) {
 class _LoadedMoves extends StatelessWidget {
   const _LoadedMoves({
     required this.moves,
+    required this.searchTimedOut,
     required this.stateBefore,
   });
 
   final List<Move> moves;
+  final bool searchTimedOut;
   final GameState stateBefore;
 
   @override
@@ -68,12 +73,9 @@ class _LoadedMoves extends StatelessWidget {
     );
 
     if (playable.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 16),
-        child: RtlText(
-          AppStrings.noOptimalMovesMessage,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+      return _EmptyMovesContent(
+        searchTimedOut: searchTimedOut,
+        stateBefore: stateBefore,
       );
     }
 
@@ -85,6 +87,10 @@ class _LoadedMoves extends StatelessWidget {
           AppStrings.optimalMovesTitle,
           style: Theme.of(context).textTheme.titleLarge,
         ),
+        if (searchTimedOut) ...[
+          const SizedBox(height: 10),
+          const SearchTimeoutBanner(),
+        ],
         const SizedBox(height: 12),
         BeforeMoveSnapshot(stateBefore: stateBefore),
         const SizedBox(height: 16),
@@ -106,6 +112,52 @@ class _LoadedMoves extends StatelessWidget {
             );
           },
         ),
+      ],
+    );
+  }
+}
+
+class _EmptyMovesContent extends StatelessWidget {
+  const _EmptyMovesContent({
+    required this.searchTimedOut,
+    required this.stateBefore,
+  });
+
+  final bool searchTimedOut;
+  final GameState stateBefore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 16),
+        RtlText(
+          AppStrings.optimalMovesTitle,
+          style: theme.textTheme.titleLarge,
+        ),
+        if (searchTimedOut) ...[
+          const SizedBox(height: 10),
+          const SearchTimeoutBanner(),
+          const SizedBox(height: 10),
+          RtlText(
+            AppStrings.optimalMovesTimedOutNoRackPlay,
+            style: theme.textTheme.bodyMedium,
+          ),
+        ] else
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: RtlText(
+              AppStrings.noOptimalMovesMessage,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+        if (searchTimedOut) ...[
+          const SizedBox(height: 12),
+          BeforeMoveSnapshot(stateBefore: stateBefore),
+        ],
       ],
     );
   }

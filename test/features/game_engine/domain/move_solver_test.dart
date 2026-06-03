@@ -29,7 +29,7 @@ void main() {
         ],
       );
 
-      final moves = useCase(state, isFirstMeldTurn: false);
+      final moves = useCase(state, isFirstMeldTurn: false).moves;
 
       expect(moves, isNotEmpty);
       expect(
@@ -56,7 +56,7 @@ void main() {
         ],
       );
 
-      final moves = useCase(state, isFirstMeldTurn: false);
+      final moves = useCase(state, isFirstMeldTurn: false).moves;
 
       expect(moves, isNotEmpty);
       final maxPlayed =
@@ -79,7 +79,7 @@ void main() {
         ],
       );
 
-      final moves = useCase(state, isFirstMeldTurn: true);
+      final moves = useCase(state, isFirstMeldTurn: true).moves;
 
       expect(moves, isEmpty);
     });
@@ -103,7 +103,7 @@ void main() {
         ],
       );
 
-      final moves = useCase(state, isFirstMeldTurn: true);
+      final moves = useCase(state, isFirstMeldTurn: true).moves;
 
       expect(moves, isNotEmpty);
       final maxPlayed =
@@ -143,7 +143,7 @@ void main() {
         ],
       );
 
-      final moves = useCase(state, isFirstMeldTurn: false);
+      final moves = useCase(state, isFirstMeldTurn: false).moves;
       final max =
           moves.map((m) => m.tilesPlayedFromRack).reduce((a, b) => a > b ? a : b);
 
@@ -168,7 +168,7 @@ void main() {
       final moves = MoveSolver.findOptimalMoves(
         state,
         isFirstMeldTurn: false,
-      );
+      ).moves;
 
       expect(moves, isNotEmpty);
       expect(moves.first.tilesPlayedFromRack, 0);

@@ -14,9 +14,13 @@ final class OptimalMovesLoading extends OptimalMovesState {
 }
 
 final class OptimalMovesLoaded extends OptimalMovesState {
-  const OptimalMovesLoaded(this.moves);
+  const OptimalMovesLoaded({
+    required this.moves,
+    required this.searchTimedOut,
+  });
 
   final List<Move> moves;
+  final bool searchTimedOut;
 }
 
 final class OptimalMovesError extends OptimalMovesState {

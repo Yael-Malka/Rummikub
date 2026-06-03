@@ -118,6 +118,7 @@ void main() {
       expect(viewModel.optimalMovesState, isA<OptimalMovesLoaded>());
       final loaded = viewModel.optimalMovesState as OptimalMovesLoaded;
       expect(loaded.moves, isNotEmpty);
+      expect(loaded.searchTimedOut, isFalse);
       expect(
         loaded.moves.any((move) => move.tilesPlayedFromRack > 0),
         isTrue,

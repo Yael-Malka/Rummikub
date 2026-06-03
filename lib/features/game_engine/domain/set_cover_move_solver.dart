@@ -5,6 +5,7 @@ import '../../simulation/domain/entities/meld.dart';
 import '../../simulation/domain/entities/tile.dart';
 import '../../simulation/domain/entities/tile_id.dart';
 import 'entities/move.dart';
+import 'entities/optimal_moves_result.dart';
 import 'legal_meld_generator.dart';
 import 'rules_validator.dart';
 
@@ -13,7 +14,7 @@ import 'rules_validator.dart';
 /// Build every legal meld from table + rack, then search for a set where
 /// each table tile appears exactly once and each rack tile at most once.
 abstract final class SetCoverMoveSolver {
-  static List<Move> findOptimalMoves(
+  static OptimalMovesResult findOptimalMoves(
     GameState state, {
     required bool isFirstMeldTurn,
     Duration timeout = SolverConstants.searchTimeout,
@@ -24,7 +25,7 @@ abstract final class SetCoverMoveSolver {
     ];
 
     if (tableTiles.isEmpty && rack.isEmpty) {
-      return const [];
+      return OptimalMovesResult.empty;
     }
 
     if (tableTiles.isEmpty) {
@@ -49,7 +50,7 @@ abstract final class SetCoverMoveSolver {
   ///
   /// Partial layouts are valid (tiles may remain on the rack). On a first-meld
   /// turn only layouts scoring 30+ from played rack tiles are kept.
-  static List<Move> _solveOpeningFromRackOnly({
+  static OptimalMovesResult _solveOpeningFromRackOnly({
     required List<Tile> rack,
     required bool isFirstMeldTurn,
     required Duration timeout,
@@ -60,6 +61,7 @@ abstract final class SetCoverMoveSolver {
     var bestRackTilesPlayed = -1;
     final bestMoves = <Move>[];
     final seenOutcomeKeys = <String>{};
+    var hitTimeout = false;
 
     void saveLayoutIfValid(List<Meld> layout, Set<TileId> tilesInLayout) {
       final count = tilesInLayout.length;
@@ -111,6 +113,7 @@ abstract final class SetCoverMoveSolver {
       int nextRackIndex,
     ) {
       if (stopwatch.elapsed >= timeout) {
+        hitTimeout = true;
         return;
       }
 
@@ -153,7 +156,15 @@ abstract final class SetCoverMoveSolver {
     }
 
     exploreLayouts([], {}, 0);
-    return bestMoves;
+    if (hitTimeout) {
+      SolverLogger.warn(
+        'Opening search timed out after ${timeout.inSeconds}s',
+      );
+    }
+    return OptimalMovesResult(
+      moves: bestMoves,
+      searchTimedOut: hitTimeout,
+    );
   }
 
   static List<Move> _passWithoutPlaying(
@@ -224,7 +235,7 @@ final class _TableCoveringSearch {
   var _nodesExplored = 0;
   var _hitTimeout = false;
 
-  List<Move> run() {
+  OptimalMovesResult run() {
     SolverLogger.info(
       'Set-cover search | rack=${rack.length} tableTiles=${tableTiles.length} '
       'melds=${state.tableMelds.length} firstMeld=$isFirstMeldTurn '
@@ -257,9 +268,12 @@ final class _TableCoveringSearch {
       if ((_meldsTouchingTableTile[tableTileId] ?? []).isEmpty) {
         SolverLogger.warn('No legal meld covers table tile $tableTileId');
         if (isFirstMeldTurn) {
-          return const [];
+          return OptimalMovesResult.empty;
         }
-        return SetCoverMoveSolver._passWithoutPlaying(state, rack);
+        return OptimalMovesResult(
+          moves: SetCoverMoveSolver._passWithoutPlaying(state, rack),
+          searchTimedOut: false,
+        );
       }
     }
 
@@ -268,12 +282,12 @@ final class _TableCoveringSearch {
     if (_bestMoves.isEmpty) {
       if (isFirstMeldTurn) {
         SolverLogger.warn('No valid first-meld move (30+ and rack play)');
-        return const [];
+        return OptimalMovesResult.empty;
       }
       final fallback = SetCoverMoveSolver._passWithoutPlaying(state, rack);
       if (fallback.isNotEmpty) {
         SolverLogger.warn('Search found nothing — keeping table as-is');
-        return fallback;
+        return OptimalMovesResult(moves: fallback, searchTimedOut: _hitTimeout);
       }
     }
 
@@ -283,7 +297,10 @@ final class _TableCoveringSearch {
       'timedOut=$_hitTimeout bestTiles=$_bestRackTilesPlayed solutions=${_bestMoves.length}',
     );
 
-    return _bestMoves;
+    return OptimalMovesResult(
+      moves: _bestMoves,
+      searchTimedOut: _hitTimeout,
+    );
   }
 
   bool get _ranTooLong => _stopwatch.elapsed >= timeout;

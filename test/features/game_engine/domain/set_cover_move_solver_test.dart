@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rummikub_app/core/constants/rules_constants.dart';
+import 'package:rummikub_app/core/constants/solver_constants.dart';
 import 'package:rummikub_app/features/game_engine/domain/rules_validator.dart';
 import 'package:rummikub_app/features/game_engine/domain/entities/move.dart';
+import 'package:rummikub_app/features/game_engine/domain/entities/optimal_moves_result.dart';
 import 'package:rummikub_app/features/game_engine/domain/set_cover_move_solver.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/game_state.dart';
 import 'package:rummikub_app/features/simulation/domain/entities/meld.dart';
@@ -11,6 +13,18 @@ import 'package:rummikub_app/features/simulation/domain/entities/tile_color.dart
 import 'test_tiles.dart';
 
 void main() {
+  OptimalMovesResult solve(
+    GameState state, {
+    required bool isFirstMeldTurn,
+    Duration timeout = SolverConstants.searchTimeout,
+  }) {
+    return SetCoverMoveSolver.findOptimalMoves(
+      state,
+      isFirstMeldTurn: isFirstMeldTurn,
+      timeout: timeout,
+    );
+  }
+
   int maxTilesPlayed(List<Move> moves) {
     return moves
         .map((m) => m.tilesPlayedFromRack)
@@ -51,8 +65,8 @@ void main() {
         ],
       );
 
-      final moves =
-          SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+      final result = solve(state, isFirstMeldTurn: false);
+      final moves = result.moves;
 
       expect(moves, isNotEmpty);
       expect(maxTilesPlayed(moves), 1);
@@ -78,8 +92,8 @@ void main() {
         ],
       );
 
-      final moves =
-          SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+      final result = solve(state, isFirstMeldTurn: false);
+      final moves = result.moves;
 
       expect(maxTilesPlayed(moves), 1);
       expectNoDuplicateVisibleOutcomes(moves);
@@ -90,8 +104,8 @@ void main() {
     test('givenEmptyTableAndEmptyRack_whenSolved_thenNoMoves', () {
       const state = GameState(rack: [], tableMelds: []);
 
-      final moves =
-          SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+      final result = solve(state, isFirstMeldTurn: false);
+      final moves = result.moves;
 
       expect(moves, isEmpty);
     });
@@ -108,8 +122,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+        final result = solve(state, isFirstMeldTurn: true);
+        final moves = result.moves;
 
         expect(moves, isNotEmpty);
         expect(maxTilesPlayed(moves), 3);
@@ -135,8 +149,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+        final result = solve(state, isFirstMeldTurn: true);
+        final moves = result.moves;
 
         expect(moves, isNotEmpty);
         expect(maxTilesPlayed(moves), 4);
@@ -162,8 +176,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+        final result = solve(state, isFirstMeldTurn: true);
+        final moves = result.moves;
 
         expect(moves, isNotEmpty);
         expect(maxTilesPlayed(moves), 3);
@@ -185,8 +199,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+        final result = solve(state, isFirstMeldTurn: true);
+        final moves = result.moves;
 
         expect(moves, isNotEmpty);
         expect(maxTilesPlayed(moves), 3);
@@ -210,8 +224,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: true);
+        final result = solve(state, isFirstMeldTurn: true);
+        final moves = result.moves;
 
         expect(moves, isEmpty);
       },
@@ -229,8 +243,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+        final result = solve(state, isFirstMeldTurn: false);
+        final moves = result.moves;
 
         expect(moves, isNotEmpty);
         expect(maxTilesPlayed(moves), 3);
@@ -253,8 +267,8 @@ void main() {
           tableMelds: const [],
         );
 
-        final moves =
-            SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+        final result = solve(state, isFirstMeldTurn: false);
+        final moves = result.moves;
 
         expect(moves, isNotEmpty);
         final max = maxTilesPlayed(moves);
@@ -263,5 +277,34 @@ void main() {
         expectNoDuplicateVisibleOutcomes(moves);
       },
     );
+  });
+
+  group('SetCoverMoveSolver — timeout', () {
+    test('givenZeroTimeout_whenSearchStops_thenReportsTimedOut', () {
+      final state = GameState(
+        rack: [
+          regularTile(TileColor.red, 6),
+          regularTile(TileColor.red, 7),
+        ],
+        tableMelds: [
+          Meld(
+            type: MeldType.run,
+            tiles: [
+              regularTile(TileColor.red, 3),
+              regularTile(TileColor.red, 4),
+              regularTile(TileColor.red, 5),
+            ],
+          ),
+        ],
+      );
+
+      final result = solve(
+        state,
+        isFirstMeldTurn: false,
+        timeout: Duration.zero,
+      );
+
+      expect(result.searchTimedOut, isTrue);
+    });
   });
 }

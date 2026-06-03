@@ -26,8 +26,10 @@ void main() {
       ],
     );
 
-    final moves =
-        SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+    final moves = SetCoverMoveSolver.findOptimalMoves(
+      state,
+      isFirstMeldTurn: false,
+    ).moves;
 
     expect(
       moves.map((m) => m.tilesPlayedFromRack).fold(0, (a, b) => a > b ? a : b),
@@ -86,8 +88,10 @@ void main() {
         ],
       );
 
-      final moves =
-          SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
+      final moves = SetCoverMoveSolver.findOptimalMoves(
+        state,
+        isFirstMeldTurn: false,
+      ).moves;
 
       expect(
         moves.map((m) => m.tilesPlayedFromRack).fold(0, (a, b) => a > b ? a : b),

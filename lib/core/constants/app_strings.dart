@@ -49,6 +49,11 @@ abstract final class AppStrings {
   static const String optimalMovesTitle = 'מהלכים אופטימליים';
   static const String optimalMovesBeforeStateTitle = 'מצב לפני המהלך';
   static const String optimalMovesPickMoveHint = 'בחר מהלך לראות את השולחן אחרי:';
+  static String optimalMovesSearchTimedOutMessage(String timeoutLabel) =>
+      'החיפוש נעצר אחרי $timeoutLabel — מוצגים המהלכים הטובים ביותר '
+      'שנמצאו, לא בהכרח המהלך האופטימלי המוחלט.';
+  static const String optimalMovesTimedOutNoRackPlay =
+      'לא הספיק להימצא מהלך שמוריד אבנים מהתושבת לפני סיום הזמן.';
   static const String noOptimalMovesMessage = 'אין מהלך חוקי מהתושבת';
   static const String moveNumberLabel = 'מהלך';
   static const String tilesPlayedFromRackLabel = 'אבנים מהתושבת';

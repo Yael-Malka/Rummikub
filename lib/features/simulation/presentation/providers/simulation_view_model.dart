@@ -95,12 +95,20 @@ class SimulationViewModel extends ChangeNotifier {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     try {
-      final moves = await OptimalMovesComputer.run(
+      final result = await OptimalMovesComputer.run(
         current.gameState,
         isFirstMeldTurn: _isFirstMeldTurn,
       );
-      SolverLogger.info('UI: search completed (${moves.length} moves)');
-      _setOptimalMovesState(OptimalMovesLoaded(moves));
+      SolverLogger.info(
+        'UI: search completed (${result.moves.length} moves, '
+        'timedOut=${result.searchTimedOut})',
+      );
+      _setOptimalMovesState(
+        OptimalMovesLoaded(
+          moves: result.moves,
+          searchTimedOut: result.searchTimedOut,
+        ),
+      );
     } catch (error, stackTrace) {
       SolverLogger.warn('UI: search failed — $error');
       SolverLogger.warn('$stackTrace');
