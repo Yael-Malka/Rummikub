@@ -59,6 +59,7 @@ abstract final class SetCoverMoveSolver {
 
     var bestRackTilesPlayed = -1;
     final bestMoves = <Move>[];
+    final seenOutcomeKeys = <String>{};
 
     void saveLayoutIfValid(List<Meld> layout, Set<TileId> tilesInLayout) {
       final count = tilesInLayout.length;
@@ -95,7 +96,11 @@ abstract final class SetCoverMoveSolver {
         bestMoves
           ..clear()
           ..add(move);
-      } else if (count == bestRackTilesPlayed && !bestMoves.contains(move)) {
+        seenOutcomeKeys
+          ..clear()
+          ..add(move.visibleOutcomeKey);
+      } else if (count == bestRackTilesPlayed &&
+          seenOutcomeKeys.add(move.visibleOutcomeKey)) {
         bestMoves.add(move);
       }
     }
@@ -215,6 +220,7 @@ final class _TableCoveringSearch {
 
   var _bestRackTilesPlayed = -1;
   final _bestMoves = <Move>[];
+  final _seenOutcomeKeys = <String>{};
   var _nodesExplored = 0;
   var _hitTimeout = false;
 
@@ -396,8 +402,12 @@ final class _TableCoveringSearch {
       _bestMoves
         ..clear()
         ..add(move);
+      _seenOutcomeKeys
+        ..clear()
+        ..add(move.visibleOutcomeKey);
       SolverLogger.progress('new best: $count tiles from rack');
-    } else if (count == _bestRackTilesPlayed && !_bestMoves.contains(move)) {
+    } else if (count == _bestRackTilesPlayed &&
+        _seenOutcomeKeys.add(move.visibleOutcomeKey)) {
       _bestMoves.add(move);
     }
   }

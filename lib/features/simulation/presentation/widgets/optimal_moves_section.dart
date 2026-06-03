@@ -41,6 +41,19 @@ class OptimalMovesSection extends StatelessWidget {
   }
 }
 
+/// One entry per visible end state (tiles on table + rack), ignoring
+/// meld grouping and physical deck copies.
+List<Move> _uniqueVisibleOutcomes(Iterable<Move> moves) {
+  final seen = <String>{};
+  final unique = <Move>[];
+  for (final move in moves) {
+    if (seen.add(move.visibleOutcomeKey)) {
+      unique.add(move);
+    }
+  }
+  return unique;
+}
+
 class _LoadedMoves extends StatelessWidget {
   const _LoadedMoves({
     required this.moves,
@@ -52,8 +65,9 @@ class _LoadedMoves extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final playable =
-        moves.where((move) => move.tilesPlayedFromRack > 0).toList();
+    final playable = _uniqueVisibleOutcomes(
+      moves.where((move) => move.tilesPlayedFromRack > 0),
+    );
 
     if (playable.isEmpty) {
       return Padding(

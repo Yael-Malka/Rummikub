@@ -1,7 +1,6 @@
 import '../../simulation/domain/entities/game_state.dart';
 import '../../simulation/domain/entities/meld.dart';
 import '../../simulation/domain/entities/tile.dart';
-import '../../simulation/domain/entities/tile_id.dart';
 import 'entities/move.dart';
 import 'entities/move_step.dart';
 
@@ -39,8 +38,8 @@ abstract final class MoveStepsBuilder {
   }
 
   static bool _tableLayoutChanged(List<Meld> before, List<Meld> after) {
-    final beforeKeys = before.map(_meldKey).toList()..sort();
-    final afterKeys = after.map(_meldKey).toList()..sort();
+    final beforeKeys = before.map(Move.visualMeldKey).toList()..sort();
+    final afterKeys = after.map(Move.visualMeldKey).toList()..sort();
     if (beforeKeys.length != afterKeys.length) {
       return true;
     }
@@ -50,19 +49,5 @@ abstract final class MoveStepsBuilder {
       }
     }
     return false;
-  }
-
-  static String _meldKey(Meld meld) {
-    final tileKeys = meld.tiles.map((tile) => _tileKey(tile.id)).toList()
-      ..sort();
-    return '${meld.type.name}:${tileKeys.join('|')}';
-  }
-
-  static String _tileKey(TileId id) {
-    return switch (id) {
-      RegularTileId(:final color, :final number, :final copyIndex) =>
-        '${color.name}-$number-$copyIndex',
-      JokerTileId(:final copyIndex) => 'joker-$copyIndex',
-    };
   }
 }

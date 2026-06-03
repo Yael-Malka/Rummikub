@@ -17,6 +17,12 @@ void main() {
         .reduce((a, b) => a > b ? a : b);
   }
 
+  void expectNoDuplicateVisibleOutcomes(List<Move> moves) {
+    final keys = moves.map((m) => m.visibleOutcomeKey).toList();
+    expect(keys.length, keys.toSet().length,
+        reason: 'each optimal move must have a unique visible end state');
+  }
+
   void expectEveryFirstMeldMoveValid(List<Move> moves) {
     for (final move in moves) {
       expect(move.tilesPlayedFromRack, greaterThan(0));
@@ -50,6 +56,7 @@ void main() {
 
       expect(moves, isNotEmpty);
       expect(maxTilesPlayed(moves), 1);
+      expectNoDuplicateVisibleOutcomes(moves);
     });
 
     test('givenReorganizeOrGroup_whenSolved_thenMaximizesRack', () {
@@ -75,6 +82,7 @@ void main() {
           SetCoverMoveSolver.findOptimalMoves(state, isFirstMeldTurn: false);
 
       expect(maxTilesPlayed(moves), 1);
+      expectNoDuplicateVisibleOutcomes(moves);
     });
   });
 
@@ -252,6 +260,7 @@ void main() {
         final max = maxTilesPlayed(moves);
         expect(moves.every((m) => m.tilesPlayedFromRack == max), isTrue);
         expect(max, 4);
+        expectNoDuplicateVisibleOutcomes(moves);
       },
     );
   });
