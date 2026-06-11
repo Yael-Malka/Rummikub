@@ -1,0 +1,50 @@
+# Stage 1 detection aug — each entry stacks several transforms via `combine`
+# (tilt + lighting + noise in one pass, like a real phone photo).
+
+augmentations:
+
+  - name: Tilted + dim lighting
+    function: combine
+    params:
+      augmentations:
+        - function: rotate
+          params: {limit: 12, border_mode: 0, p: 1.0}
+        - function: perspective
+          params: {scale: [0.03, 0.07], p: 0.7}
+        - function: brightness_contrast
+          params: {brightness_limit: -0.2, contrast_limit: 0.15, p: 1.0}
+
+  - name: Bright glare + warm white-balance
+    function: combine
+    params:
+      augmentations:
+        - function: brightness_contrast
+          params: {brightness_limit: 0.3, contrast_limit: 0.2, p: 1.0}
+        - function: hsv
+          params: {hue_shift_limit: 6, sat_shift_limit: 20, val_shift_limit: 25, p: 1.0}
+        - function: clahe
+          params: {clip_limit: 2.0, tile_grid_size: [8, 8], p: 0.5}
+
+  - name: Low-quality phone capture
+    function: combine
+    params:
+      augmentations:
+        - function: blur
+          params: {blur_limit: [3, 7], p: 0.8}
+        - function: noise
+          params: {var_limit: [10.0, 40.0], p: 0.8}
+        - function: jpeg_compression
+          params: {quality_lower: 40, quality_upper: 75, p: 1.0}
+
+  - name: Off-angle handheld shot
+    function: combine
+    params:
+      augmentations:
+        - function: flip_lr
+          params: {p: 0.5}
+        - function: shear
+          params: {shear: [-8, 8], p: 1.0}
+        - function: translate
+          params: {shift_limit: 0.1, border_mode: 0, p: 1.0}
+        - function: scale
+          params: {scale_limit: 0.2, p: 1.0}

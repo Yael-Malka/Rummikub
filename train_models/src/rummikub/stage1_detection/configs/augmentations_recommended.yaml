@@ -1,0 +1,87 @@
+# Stage 1 detection aug — one transform per entry, applied to every source image.
+# Flips/rotations are fine here (we only detect boxes, not read digits).
+# Functions: flip_lr flip_ud rotate perspective shear translate scale hsv
+#            brightness_contrast blur noise grayscale clahe jpeg_compression mosaic combine
+
+augmentations:
+
+  - name: Horizontal Flip
+    function: flip_lr
+    params:
+      p: 1.0
+
+  - name: Rotate
+    function: rotate
+    params:
+      limit: 15
+      border_mode: 0
+      p: 1.0
+
+  - name: Perspective
+    function: perspective
+    params:
+      scale: [0.03, 0.08]
+      p: 1.0
+
+  - name: Shear
+    function: shear
+    params:
+      shear: [-8, 8]
+      p: 1.0
+
+  - name: Translate
+    function: translate
+    params:
+      shift_limit: 0.1
+      border_mode: 0
+      p: 1.0
+
+  - name: Scale
+    function: scale
+    params:
+      scale_limit: 0.2
+      p: 1.0
+
+  - name: HSV Jitter
+    function: hsv
+    params:
+      hue_shift_limit: 8
+      sat_shift_limit: 25
+      val_shift_limit: 20
+      p: 1.0
+
+  - name: Brightness / Contrast
+    function: brightness_contrast
+    params:
+      brightness_limit: 0.25
+      contrast_limit: 0.25
+      p: 1.0
+
+  - name: CLAHE
+    function: clahe
+    params:
+      clip_limit: 3.0
+      tile_grid_size: [8, 8]
+      p: 1.0
+
+  - name: Gaussian Blur
+    function: blur
+    params:
+      blur_limit: [3, 7]
+      p: 1.0
+
+  - name: Gaussian Noise
+    function: noise
+    params:
+      var_limit: [10.0, 40.0]
+      p: 1.0
+
+  - name: JPEG Compression
+    function: jpeg_compression
+    params:
+      quality_lower: 50
+      quality_upper: 90
+      p: 1.0
+
+  - name: Mosaic 2x2
+    function: mosaic
