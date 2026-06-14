@@ -1,4 +1,4 @@
-"""Re-exports from geometry."""
+"""Re-exports from geometry and preprocess."""
 
 from rummikub.common.geometry import (
     CROP_SIZE,
@@ -8,6 +8,7 @@ from rummikub.common.geometry import (
     padded_crop,
     save_crop,
 )
+from rummikub.common.preprocess import clahe_on_l, preprocess_bgr
 
 __all__ = [
     "CROP_SIZE",
@@ -16,4 +17,6 @@ __all__ = [
     "normalize_color",
     "normalize_number",
     "save_crop",
+    "clahe_on_l",
+    "preprocess_bgr",
 ]

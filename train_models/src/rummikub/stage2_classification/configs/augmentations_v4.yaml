@@ -1,0 +1,116 @@
+# Stage 2 classification aug — v4 (active). CLAHE is random here, not baked at build time.
+# No flips, no big hue shifts, rotation capped at ±30° (6/9 handled in build_dataset).
+
+n_variants: 9
+
+augmentations:
+
+  - name: Rotation
+    function: rotate
+    params:
+      limit: 30
+      border_mode: 0
+      value: [114, 114, 114]
+      p: 0.75
+
+  - name: Shift and Scale
+    function: shift_scale
+    params:
+      shift_limit: 0.12
+      scale_limit: 0.25
+      rotate_limit: 0
+      border_mode: 0
+      value: [114, 114, 114]
+      p: 0.65
+
+  - name: Perspective
+    function: perspective
+    params:
+      scale: [0.03, 0.08]
+      p: 0.5
+
+  - name: Shear
+    function: shear
+    params:
+      shear: [-10, 10]
+      p: 0.4
+
+  - name: Grid Distortion
+    function: grid_distortion
+    params:
+      num_steps: 5
+      distort_limit: 0.2
+      p: 0.3
+
+  - name: Brightness and Contrast
+    function: brightness_contrast
+    params:
+      brightness_limit: 0.35
+      contrast_limit: 0.30
+      p: 0.75
+
+  - name: Saturation Shift
+    function: saturation_only
+    params:
+      sat_shift_limit: 25
+      p: 0.5
+
+  - name: Shadow
+    function: shadow
+    params:
+      shadow_roi: [0.0, 0.0, 1.0, 1.0]
+      num_shadows_lower: 1
+      num_shadows_upper: 2
+      shadow_dimension: 4
+      p: 0.25
+
+  - name: Sharpen
+    function: sharpen
+    params:
+      alpha: [0.2, 0.5]
+      lightness: [0.5, 1.0]
+      p: 0.3
+
+  - name: CLAHE
+    function: clahe
+    params:
+      clip_limit: [1.0, 3.0]
+      tile_grid_size: [8, 8]
+      p: 0.3
+
+  - name: Downscale
+    function: downscale
+    params:
+      scale_range: [0.25, 0.70]
+      p: 0.55
+
+  - name: Gaussian Blur
+    function: blur
+    params:
+      blur_limit: [3, 7]
+      p: 0.45
+
+  - name: Gaussian Noise
+    function: noise
+    params:
+      var_limit: [5.0, 35.0]
+      p: 0.45
+
+  - name: JPEG Compression
+    function: jpeg_compression
+    params:
+      quality_lower: 40
+      quality_upper: 90
+      p: 0.45
+
+  - name: Coarse Dropout
+    function: coarse_dropout
+    params:
+      max_holes: 4
+      max_height: 20
+      max_width: 20
+      min_holes: 1
+      min_height: 6
+      min_width: 6
+      fill_value: 114
+      p: 0.35
