@@ -1,4 +1,4 @@
-"""VLM pipeline step 2 — number on each tile from step1/results.json."""
+"""Step 2: read the tile number from each accepted crop."""
 
 import argparse, base64, importlib.util, json, os, re, sys, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -22,10 +22,12 @@ USER_PROMPT = (
 )
 
 def b64(img):
+    """Encode a BGR image as a base64 JPEG string."""
     _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 92])
     return base64.b64encode(buf.tobytes()).decode()
 
 def detect_model(endpoint):
+    """Pick a vision-capable model from the LM Studio server."""
     r = requests.get(f"{endpoint}/models", timeout=10)
     r.raise_for_status()
     d = r.json().get("data", [])
@@ -36,6 +38,7 @@ def detect_model(endpoint):
     return d[0]["id"]
 
 def _parse_number(text):
+    """Pull a valid number or joker out of VLM text."""
     t = text.strip().lower()
     if "joker" in t: return "joker"
     m = re.search(r'\b(1[0-3]|[1-9])\b', t)
@@ -43,6 +46,7 @@ def _parse_number(text):
     return None
 
 def _call(endpoint, model, img):
+    """One VLM call; returns parsed number or None."""
     r = requests.post(f"{endpoint}/chat/completions", json={
         "model": model, "temperature": 0.0, "max_tokens": 8,
         "messages": [
@@ -57,21 +61,20 @@ def _call(endpoint, model, img):
     return _parse_number(r.json()["choices"][0]["message"]["content"])
 
 def query(endpoint, model, img, max_retries=6):
-    """Returns number string or None (→ review). Retries on server errors."""
+    """Returns number string or None; retries on server errors."""
     delay = 2.0
     for attempt in range(max_retries):
         try:
             result = _call(endpoint, model, img)
             if result is not None:
                 return result
-            # Unparseable: retry without sleep (might be a weird response)
         except requests.exceptions.RequestException:
             if attempt < max_retries - 1:
                 time.sleep(delay); delay = min(delay * 2, 30)
     return None
 
 def save_grouped_montage(by_num, path, cell=128):
-    """Tile grid grouped by number with a header row per group."""
+    """Thumbnail grid grouped by number with a header row per group."""
     cols = 12
     font = cv2.FONT_HERSHEY_SIMPLEX
     order = [str(i) for i in range(1, 14)] + ["joker", "review"]
@@ -79,12 +82,10 @@ def save_grouped_montage(by_num, path, cell=128):
     for num in order:
         tiles = by_num.get(num, [])
         if not tiles: continue
-        # Header strip
         hdr = np.full((28, cols * cell, 3), 20, np.uint8)
         cv2.putText(hdr, f"  {num}  ({len(tiles)} tiles)", (4, 20),
                     font, 0.65, (80, 200, 255), 1, cv2.LINE_AA)
         rows_img.append(hdr)
-        # Tile rows
         n_rows = (len(tiles) + cols - 1) // cols
         band = np.full((n_rows * cell, cols * cell, 3), 35, np.uint8)
         for i, img in enumerate(tiles):
@@ -103,6 +104,7 @@ def save_grouped_montage(by_num, path, cell=128):
     cv2.imwrite(str(path), canvas, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
 def main():
+    """Label numbers for all tiles in step1/tiles/."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--endpoint", default="http://localhost:1234/v1")
     ap.add_argument("--model",    default=None)
@@ -129,7 +131,6 @@ def main():
         sys.exit(f"Cannot reach LM Studio at {endpoint}.")
     print(f"Model: {model}  workers: {args.workers}")
 
-    # Scan tiles/ directory directly — respects manual additions/removals.
     tiles_dir  = step1_dir / "tiles"
     native_dir = step1_dir / "tiles_native"
     tile_files = sorted(tiles_dir.glob("*.jpg"))
@@ -139,10 +140,9 @@ def main():
     for tf in tile_files:
         tid = tf.stem
         native_path = native_dir / tf.name
-        # Prefer native resolution for VLM; fall back to 128px crop.
         img = cv2.imread(str(native_path)) if native_path.exists() else None
         img128 = cv2.imread(str(tf))
-        if img is None: img = img128       # no native → use 128px for VLM too
+        if img is None: img = img128
         if img is None: continue
         jobs.append({"tile_id": tid, "native_img": img, "crop_128": img128})
 
@@ -157,7 +157,6 @@ def main():
             tid, num = fut.result()
             results_out[tid] = num
 
-    # Save crops
     records, by_num = [], {}
     n_accepted = n_review = 0
     for j in jobs:

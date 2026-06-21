@@ -7,6 +7,7 @@ from pathlib import Path
 
 from rummikub.paths import DATA_DIR, MODELS_DIR, PROJECT_ROOT as ROOT
 def main():
+    """Peek at archive.zip contents and rummikub.json shape."""
     archive_path = ROOT / "archive.zip"
 
     with zipfile.ZipFile(archive_path) as z:

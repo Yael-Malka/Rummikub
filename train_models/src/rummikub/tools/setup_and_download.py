@@ -1,4 +1,4 @@
-"""Ask for a Roboflow key, then download all four stage-1 datasets at once."""
+"""Prompt for a Roboflow key and download all four stage-1 datasets."""
 
 import getpass
 import subprocess
@@ -18,6 +18,7 @@ RF_SCRIPTS = [
 ]
 
 def launch_all(rf_key: str) -> list:
+    """Start all four Roboflow download scripts in parallel."""
     processes = []
 
     for script in RF_SCRIPTS:
@@ -33,7 +34,6 @@ def launch_all(rf_key: str) -> list:
             stderr=subprocess.STDOUT,
             cwd=str(PROJECT_DIR),
         )
-        # Send key once via stdin, then close so the script's input() returns
         proc.stdin.write((rf_key + "\n").encode())
         proc.stdin.close()
 
@@ -43,6 +43,7 @@ def launch_all(rf_key: str) -> list:
     return processes
 
 def wait_all(processes: list):
+    """Block until every download process exits."""
     print()
     print("Waiting for all downloads to finish...")
     print("(logs in datasets/stage1_detection/for-review/*.log)")
@@ -65,6 +66,7 @@ def wait_all(processes: list):
     print("All downloads complete. Check datasets/stage1_detection/for-review/ for results.")
 
 def main():
+    """Prompt for API key and kick off dataset downloads."""
     print("=" * 50)
     print("  Roboflow Dataset Downloader")
     print("=" * 50)

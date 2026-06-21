@@ -1,4 +1,4 @@
-"""Label tiles via Qwen-VL in LM Studio (--image or --zip). Disagreements -> crops_review/."""
+"""Label tiles with Qwen-VL in LM Studio. Doubtful ones land in crops_review/."""
 
 import argparse
 import base64
@@ -41,6 +41,7 @@ USER_PROMPT = (
 )
 
 def detect_model(endpoint: str) -> str:
+    """Return the first loaded model id from LM Studio."""
     r = requests.get(f"{endpoint}/models", timeout=10)
     r.raise_for_status()
     data = r.json().get("data", [])
@@ -49,12 +50,14 @@ def detect_model(endpoint: str) -> str:
     return data[0]["id"]
 
 def _b64_jpeg(img_bgr) -> str:
+    """Encode a BGR image as a base64 JPEG string."""
     ok, buf = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
     if not ok:
         raise RuntimeError("JPEG encode failed")
     return base64.b64encode(buf.tobytes()).decode("ascii")
 
 def query_vlm(endpoint: str, model: str, img_bgr, temperature: float):
+    """Ask the VLM once and return (number, color) or None."""
     payload = {
         "model": model,
         "temperature": temperature,
@@ -73,6 +76,7 @@ def query_vlm(endpoint: str, model: str, img_bgr, temperature: float):
     return parse_label(r.json()["choices"][0]["message"]["content"])
 
 def canon_number(s) -> str | None:
+    """Normalize a number or joker string from JSON."""
     s = str(s).strip().lower()
     if s in ("j", "joker", "wild", "wildcard"):
         return "joker"
@@ -82,6 +86,7 @@ def canon_number(s) -> str | None:
     return None
 
 def canon_color(s) -> str | None:
+    """Normalize a color string from JSON."""
     s = str(s).strip().lower()
     for c in COLORS:
         if c in s:
@@ -91,6 +96,7 @@ def canon_color(s) -> str | None:
     return None
 
 def parse_label(content: str):
+    """Parse a JSON label from the model response."""
     m = re.search(r"\{.*?\}", content, re.DOTALL)
     if not m:
         return None
@@ -109,6 +115,7 @@ def parse_label(content: str):
     return (num, col)
 
 def jitter(img_bgr, rng: random.Random):
+    """Small random rotation and crop for vote diversity."""
     h, w = img_bgr.shape[:2]
     ang = rng.uniform(-5, 5)
     M = cv2.getRotationMatrix2D((w / 2, h / 2), ang, 1.0)
@@ -118,6 +125,7 @@ def jitter(img_bgr, rng: random.Random):
     return rot[py:h - py or h, px:w - px or w]
 
 def vote(labels: list, passes: int):
+    """Majority vote across passes; returns label, agreement, and status."""
     valid = [l for l in labels if l is not None]
     if not valid:
         return None, 0.0, "review"
@@ -132,6 +140,7 @@ def vote(labels: list, passes: int):
     return label, agreement, status
 
 def load_image_bytes(data: bytes):
+    """Decode raw image bytes to a BGR array."""
     buf = np.frombuffer(data, np.uint8)
     return cv2.imdecode(buf, cv2.IMREAD_COLOR)
 
@@ -147,6 +156,7 @@ def detect_tiles(det_model, img_bgr, conf: float):
     return boxes
 
 def extract_crops(img_bgr, boxes):
+    """Padded-crop each detection box."""
     crops = []
     for x1, y1, x2, y2 in boxes:
         c = padded_crop(img_bgr, x1, y1, x2 - x1, y2 - y1)
@@ -154,6 +164,7 @@ def extract_crops(img_bgr, boxes):
     return crops
 
 def save_montage(tiles: list, path: Path, cell: int = 150, cols: int = 8):
+    """Write a review grid with labels and agreement %."""
     n = len(tiles)
     if n == 0:
         return
@@ -184,13 +195,9 @@ def label_tiles_parallel(
     temp: float,
     workers: int,
 ) -> list[dict]:
-    """
-    Run all VLM calls (N passes × all tiles) in parallel via ThreadPoolExecutor.
-    Returns list of tile result dicts.
-    """
+    """Run all VLM passes in parallel and vote per tile."""
     rng = random.Random(42)
 
-    # Build flat job list: (tile_id, pass_idx, sub_crop, temperature)
     jobs = []
     for t in tile_jobs:
         crop = t["crop"]
@@ -198,7 +205,6 @@ def label_tiles_parallel(
             sub  = crop if p == 0 else jitter(crop, rng)
             jobs.append((t["tile_id"], p, sub, 0.0 if p == 0 else temp))
 
-    # Run all jobs in parallel.
     results: dict[str, list] = {t["tile_id"]: [None] * passes for t in tile_jobs}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         future_map = {
@@ -214,7 +220,6 @@ def label_tiles_parallel(
                     results[tile_id][p_idx] = None
                 bar.update(1)
 
-    # Vote per tile.
     out = []
     for t in tile_jobs:
         labels      = results[t["tile_id"]]
@@ -230,6 +235,7 @@ def label_tiles_parallel(
     return out
 
 def main():
+    """Detect tiles, label with VLM, write manifest and review crops."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--image",   default=None, help="Single image path")
     ap.add_argument("--zip",     default=None, help="Zip of board photos")
@@ -349,7 +355,6 @@ def main():
             "passes": t["passes"],
         })
 
-    # Write manifest (append if exists, so repeated runs accumulate).
     man_path = out_dir / "manifest.csv"
     write_header = not man_path.exists()
     with open(man_path, "a", newline="", encoding="utf-8") as f:

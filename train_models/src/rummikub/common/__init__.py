@@ -1,4 +1,4 @@
-"""Re-exports from geometry and preprocess."""
+"""Shared geometry and image preprocessing helpers."""
 
 from rummikub.common.geometry import (
     CROP_SIZE,

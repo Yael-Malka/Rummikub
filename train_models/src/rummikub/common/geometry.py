@@ -1,4 +1,4 @@
-"""padded_crop + letterbox_square — must match between training and inference."""
+"""Crop helpers — keep letterbox/padding identical in train and inference."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ import cv2
 import numpy as np
 
 CROP_SIZE    = 128
-PAD_COLOR    = (114, 114, 114)  # gray letterbox fill
-PADDING_PCT  = 0.05             # 5% padding on each side of a detected box
+PAD_COLOR    = (114, 114, 114)  # gray bars in letterbox
+PADDING_PCT  = 0.05
 JPEG_QUALITY = 95
-MIN_DIM      = 10               # skip degenerate crops smaller than this
+MIN_DIM      = 10               # ignore tiny slivers
 
 def letterbox_square(img: np.ndarray, size: int = CROP_SIZE) -> np.ndarray:
-    """Letterbox-pad a crop to a square of ``size`` x ``size`` with gray fill."""
+    """Fit crop into a square canvas with gray padding."""
     h, w = img.shape[:2]
     if h == 0 or w == 0:
         return np.full((size, size, 3), PAD_COLOR, dtype=np.uint8)
@@ -32,10 +32,7 @@ def letterbox_square(img: np.ndarray, size: int = CROP_SIZE) -> np.ndarray:
     return canvas
 
 def padded_crop(img: np.ndarray, x: int, y: int, w: int, h: int):
-    """Add 5% padding on each side (clamped to image bounds) and return the crop.
-
-    Returns None if the resulting crop is degenerate (< MIN_DIM on any side).
-    """
+    """Crop with a little padding; None if the box is too small."""
     img_h, img_w = img.shape[:2]
     pad_x = int(round(w * PADDING_PCT))
     pad_y = int(round(h * PADDING_PCT))
@@ -50,20 +47,21 @@ def padded_crop(img: np.ndarray, x: int, y: int, w: int, h: int):
     return img[y1:y2, x1:x2]
 
 def normalize_number(raw: str) -> str:
-    """Map raw number string to canonical form: '1'..'13' or 'joker'."""
+    """'J' → joker, otherwise pass through 1–13."""
     raw = raw.strip()
     if raw.upper() == "J":
         return "joker"
-    return raw  # already '1'..'13'
+    return raw
 
 def normalize_color(raw: str) -> str:
-    """Map raw color string to lowercase canonical form ('Orange' -> 'orange')."""
+    """Lowercase color name."""
     return raw.strip().lower()
 
 def safe_stem(stem: str) -> str:
-    """Sanitize an image stem for use in a filename."""
+    """Filename-safe stem."""
     return re.sub(r"[^\w\-]", "_", stem)
 
 def save_crop(crop: np.ndarray, out_path: Path) -> bool:
+    """Write a JPEG crop, creating parent dirs."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     return cv2.imwrite(str(out_path), crop, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])

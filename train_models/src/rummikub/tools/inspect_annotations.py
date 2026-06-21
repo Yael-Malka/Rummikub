@@ -7,6 +7,7 @@ from pathlib import Path
 
 from rummikub.paths import DATA_DIR, MODELS_DIR, PROJECT_ROOT as ROOT
 def main():
+    """Print annotation stats from archive.zip / rummikub.json."""
     with zipfile.ZipFile(ROOT / "archive.zip") as z:
         with z.open("rummikub.json") as f:
             data = json.load(f)
@@ -56,7 +57,6 @@ def main():
         print(f"  {k!r:12s}: {colors[k]}")
 
     print()
-    # Show sample entry
     sample_key = next(iter(data))
     entry = data[sample_key]
     print("Sample entry key:", sample_key)

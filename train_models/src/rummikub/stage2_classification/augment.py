@@ -1,4 +1,4 @@
-"""Offline aug for stage-2 train crops (--preview shows a sample grid first)."""
+"""Offline aug for stage-2 train crops (--preview shows a sample grid)."""
 
 import argparse
 import csv
@@ -27,12 +27,12 @@ SEED       = 42
 NUM_WORKERS = 8
 
 def _p(params, key, default):
-    """Return a list value as tuple, other values as-is, with a fallback."""
+    """Get a config value; lists become tuples."""
     v = params.get(key, default)
     return tuple(v) if isinstance(v, list) else v
 
 def build_compose(aug_configs: list) -> A.Compose:
-    """Build a single A.Compose from the YAML augmentation list."""
+    """Build albumentations pipeline from YAML list."""
     transforms = []
     for cfg in aug_configs:
         fn = cfg["function"]
@@ -71,7 +71,7 @@ def build_compose(aug_configs: list) -> A.Compose:
                 p=p.get("p", 0.7),
             ))
         elif fn == "saturation_only":
-            # HueSaturationValue with hue=0 and val=0 -> saturation shift only
+            # hue/val locked — saturation only
             transforms.append(A.HueSaturationValue(
                 hue_shift_limit=0,
                 sat_shift_limit=p.get("sat_shift_limit", 20),
@@ -127,17 +127,14 @@ def build_compose(aug_configs: list) -> A.Compose:
                 p=p.get("p", 0.25),
             ))
         elif fn == "sharpen":
-            # Unsharp masking (doc §4.6): sharpen digit edges. As a random aug
-            # (not a deterministic bake) the model sees both sharp and soft views.
+            # unsharp mask — random sharpness, not a fixed bake
             transforms.append(A.Sharpen(
                 alpha=_p(p, "alpha", (0.2, 0.5)),
                 lightness=_p(p, "lightness", (0.5, 1.0)),
                 p=p.get("p", 0.3),
             ))
         elif fn == "clahe":
-            # CLAHE as a RANDOM augmentation (doc §4.5.1 recommendation) rather than
-            # a deterministic bake -> contrast robustness with no inference cost.
-            # A.CLAHE applies on the luminance only, so colour is preserved.
+            # CLAHE as random aug (luminance only, keeps color)
             transforms.append(A.CLAHE(
                 clip_limit=_p(p, "clip_limit", (1.0, 3.0)),
                 tile_grid_size=tuple(_p(p, "tile_grid_size", (8, 8))),
@@ -157,7 +154,7 @@ def augment_crop(
     compose: A.Compose,
     rng_seed: int,
 ) -> list[dict]:
-    """Augment one crop N times + copy the original. Returns manifest rows."""
+    """Augment one crop N times; always keep the original too."""
     img = cv2.imread(src_path)
     if img is None:
         return []
@@ -168,7 +165,7 @@ def augment_crop(
 
     rows = []
 
-    # Copy the original.
+    # keep original
     orig_dst = out_sub / f"{stem}.jpg"
     cv2.imwrite(str(orig_dst), img, [cv2.IMWRITE_JPEG_QUALITY, 95])
     rows.append({
@@ -176,7 +173,7 @@ def augment_crop(
         "number": number, "color": color, "source": source, "split": "train",
     })
 
-    # Generate N augmented variants.
+    # N random variants
     rng = random.Random(rng_seed)
     for i in range(n_variants):
         seed_i = rng.randint(0, 2**31)
@@ -193,7 +190,7 @@ def augment_crop(
     return rows
 
 def run_preview(rows: list[dict], compose: A.Compose, n_samples: int = 6, n_cols: int = 8):
-    """Save a grid of n_samples crops × (original + n_cols-1 variants) to disk."""
+    """Save a preview grid: original + a few aug columns."""
     train_rows = [r for r in rows if r["split"] == "train"]
     random.seed(SEED)
     samples = random.sample(train_rows, min(n_samples, len(train_rows)))
@@ -207,9 +204,9 @@ def run_preview(rows: list[dict], compose: A.Compose, n_samples: int = 6, n_cols
         img = cv2.imread(r["filepath"])
         if img is None:
             continue
-        # Column 0: original
+        # col 0 = original
         grid[row_idx*cell:(row_idx+1)*cell, 0:cell] = img
-        # Columns 1..n_cols-1: augmented variants
+        # cols 1+ = augmented
         for col_idx in range(1, n_cols):
             aug = compose(image=img)["image"]
             grid[row_idx*cell:(row_idx+1)*cell, col_idx*cell:(col_idx+1)*cell] = aug
@@ -223,6 +220,7 @@ def run_preview(rows: list[dict], compose: A.Compose, n_samples: int = 6, n_cols
           "downscaled samples look like real detector crops.")
 
 def main(preview_only: bool = False):
+    """Augment train split and write manifest_aug.csv."""
     with open(CONFIG, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -266,7 +264,7 @@ def main(preview_only: bool = False):
                 manifest_rows.extend(fut.result())
                 bar.update(1)
 
-    # Pass val/test through (copy originals, no augmentation).
+    # val/test: copy through unchanged
     print("Copying val/test crops through untouched...")
     for r in tqdm(other_rows, desc="val/test"):
         src = Path(r["filepath"])

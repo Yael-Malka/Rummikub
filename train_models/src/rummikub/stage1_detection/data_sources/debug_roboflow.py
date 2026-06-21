@@ -12,6 +12,7 @@ PROJECTS = [
 ]
 
 def main():
+    """Print version info for each configured Roboflow project."""
     api_key = getpass.getpass("Roboflow API key: ").strip()
     if not api_key:
         print("ERROR: no key entered")

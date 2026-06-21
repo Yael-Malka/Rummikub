@@ -1,4 +1,4 @@
-"""Quick utility: run the detector and dump each box as a separate JPEG."""
+"""Run detector on one image and save each box as a JPEG."""
 
 import argparse
 from pathlib import Path
@@ -10,6 +10,7 @@ from rummikub.paths import DATA_DIR, MODELS_DIR, PROJECT_ROOT as ROOT
 WEIGHTS = MODELS_DIR / "stage1_detection/rummikub-yolo11m/weights/best.pt"
 
 def main():
+    """CLI: image path + output folder."""
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="Path to input image")
     parser.add_argument("output_dir", help="Directory to save cropped tiles")
@@ -36,7 +37,7 @@ def main():
         conf  = float(box.conf)
         x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
 
-        # Clamp to image bounds.
+        # stay inside image bounds
         x1 = max(0, x1); y1 = max(0, y1)
         x2 = min(img.shape[1], x2); y2 = min(img.shape[0], y2)
 

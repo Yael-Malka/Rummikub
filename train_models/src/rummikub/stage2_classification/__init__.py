@@ -1,4 +1,4 @@
-"""Stage 2 — two-head tile classifier (number 1-13/joker + color)."""
+"""Two-head tile classifier (number 1-13/joker + color)."""
 
 from rummikub.stage2_classification.model import TileClassifier
 

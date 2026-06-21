@@ -1,1 +1,1 @@
-"""Misc project tooling: dataset/archive inspectors and environment setup."""
+"""Inspectors and one-shot setup helpers."""

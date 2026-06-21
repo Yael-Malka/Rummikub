@@ -1,4 +1,4 @@
-"""VLM pipeline step 3 — color per tile, final manifest under step3/."""
+"""Step 3: read tile color and write the final manifest under step3/."""
 
 import argparse, base64, csv, importlib.util, json, os, re, sys, time
 from collections import Counter
@@ -24,10 +24,12 @@ USER_PROMPT = (
 )
 
 def b64(img):
+    """Encode a BGR image as a base64 JPEG string."""
     _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 92])
     return base64.b64encode(buf.tobytes()).decode()
 
 def detect_model(endpoint):
+    """Pick a vision-capable model from the LM Studio server."""
     r = requests.get(f"{endpoint}/models", timeout=10)
     r.raise_for_status()
     d = r.json().get("data", [])
@@ -38,13 +40,14 @@ def detect_model(endpoint):
     return d[0]["id"]
 
 def _parse_color(text):
+    """Pull a valid color name out of VLM text."""
     t = text.strip().lower()
     for c in VALID_COLORS:
         if c in t: return c
     return None
 
 def _call(endpoint, model, img):
-    # (connect_timeout=5s, read_timeout=15s) — short enough to detect LM Studio hangs fast
+    """One VLM call; returns parsed color or None."""
     r = requests.post(f"{endpoint}/chat/completions", json={
         "model": model, "temperature": 0.0, "max_tokens": 8,
         "messages": [
@@ -59,14 +62,13 @@ def _call(endpoint, model, img):
     return _parse_color(r.json()["choices"][0]["message"]["content"])
 
 def query(endpoint, model, img, max_retries=8):
-    """Returns color string or None (unknown). Retries on server errors with backoff."""
+    """Returns color string or None; retries on errors with backoff."""
     delay = 1.0
     for attempt in range(max_retries):
         try:
             result = _call(endpoint, model, img)
             if result is not None:
                 return result
-            # Unparseable response — short sleep then retry
             time.sleep(0.5)
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
@@ -78,7 +80,7 @@ COLOR_BGR = {"black": (80,80,80), "blue": (220,130,0), "orange": (0,165,255),
              "red": (0,0,220), "unknown": (60,60,180)}
 
 def save_grid_montage(by_num_col, path, cell=96):
-    """Grid: rows = numbers 1-13+joker, columns = black/blue/orange/red/unknown."""
+    """Grid montage: rows = numbers, columns = colors."""
     numbers = [str(i) for i in range(1, 14)] + ["joker"]
     colors  = ["black", "blue", "orange", "red", "unknown"]
     font    = cv2.FONT_HERSHEY_SIMPLEX
@@ -89,7 +91,6 @@ def save_grid_montage(by_num_col, path, cell=96):
     total_h = (len(numbers) + 1) * cell  # +1 for col header
     canvas = np.full((total_h, total_w, 3), 25, np.uint8)
 
-    # Column headers
     for ci, col in enumerate(colors):
         x0 = (ci + 1) * cell
         cv2.rectangle(canvas, (x0, 0), (x0 + cell - 2, cell - 2), COLOR_BGR[col], -1)
@@ -97,13 +98,11 @@ def save_grid_montage(by_num_col, path, cell=96):
 
     for ri, num in enumerate(numbers):
         y0 = (ri + 1) * cell
-        # Row label
         cv2.putText(canvas, num, (4, y0 + cell // 2 + 6), font, 0.65, (200,200,200), 1, cv2.LINE_AA)
         for ci, col in enumerate(colors):
             imgs = (by_num_col.get(num) or {}).get(col, [])
             x0 = (ci + 1) * cell
             count = min(len(imgs), max_per_cell)
-            # Draw up to 6 thumbnails in a 3×2 mini grid
             for k in range(count):
                 kr, kc = divmod(k, 3)
                 tx, ty = x0 + kc * sub + 1, y0 + kr * sub + 1
@@ -116,6 +115,7 @@ def save_grid_montage(by_num_col, path, cell=96):
     cv2.imwrite(str(path), canvas, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
 def main():
+    """Label colors and write step3 manifest."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--endpoint", default="http://localhost:1234/v1")
     ap.add_argument("--model",    default=None)
@@ -141,7 +141,6 @@ def main():
         sys.exit(f"Cannot reach LM Studio at {endpoint}.")
     print(f"Model: {model}  workers: {args.workers}")
 
-    # Scan step2/<number>/ folders directly — picks up manual corrections.
     step1_dir  = base_dir / "step1"
     native_dir = step1_dir / "tiles_native"
     valid_nums = [str(i) for i in range(1, 14)] + ["joker"]
@@ -154,7 +153,6 @@ def main():
         for tf in sorted(num_dir.glob("*.jpg")):
             tid   = tf.stem
             img128 = cv2.imread(str(tf))
-            # Prefer native resolution for VLM quality
             native_path = native_dir / f"{tid}.jpg"
             img = cv2.imread(str(native_path)) if native_path.exists() else None
             if img is None:
@@ -166,7 +164,6 @@ def main():
 
     print(f"Tiles from step2 folders: {len(jobs)}")
 
-    # Handle jokers: color is always joker, skip VLM
     joker_jobs  = [j for j in jobs if j["number"] == "joker"]
     color_jobs  = [j for j in jobs if j["number"] != "joker"]
 
@@ -176,7 +173,6 @@ def main():
     results_out = {j["tile_id"]: "joker" for j in joker_jobs}
 
     def identify(j):
-        # Use 128px crop — color is identifiable at low res and sends 10× faster
         img = j["img128"] if j["img128"] is not None else j["native_img"]
         return j["tile_id"], query(endpoint, model, img)
 
@@ -186,7 +182,6 @@ def main():
             tid, col = fut.result()
             results_out[tid] = col
 
-    # Save crops + manifest
     records, manifest_rows = [], []
     by_num_col = {}
     for j in jobs:
@@ -220,7 +215,6 @@ def main():
 
     save_grid_montage(by_num_col, step_dir / "montage.jpg")
 
-    # Summary
     n_colored  = sum(1 for r in records if r["color"] != "unknown")
     n_unknown  = sum(1 for r in records if r["color"] == "unknown")
     cls = Counter((r["number"], r["color"]) for r in records if r["color"] != "unknown")

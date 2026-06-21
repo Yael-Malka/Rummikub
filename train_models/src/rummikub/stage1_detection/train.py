@@ -1,14 +1,12 @@
-"""Train YOLO to find tile boxes on the table (stage 1).
+"""Stage 1 YOLO training — find tile boxes.
 
-Missing a tile hurts more than a false alarm, so recall > precision.
-Most augmentation is offline; online aug stays light.
-
-  python -m rummikub.stage1_detection.train
+Missed tiles hurt more than false positives, so we bias recall.
+Heavy aug is offline; online aug stays mild.
 """
 
 import os
 
-# Set before torch import — helps avoid OOM on an 8.5 GB GPU.
+# before importing torch — helps on 8.5 GB GPUs
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 from pathlib import Path
@@ -22,6 +20,7 @@ PROJECT    = str(MODELS_DIR / "stage1_detection")
 RUN_NAME   = "rummikub-yolo11m"
 
 def main():
+    """Train, eval on test split, export ONNX."""
     model = YOLO(BASE_MODEL)
 
     model.train(
@@ -30,11 +29,10 @@ def main():
         epochs     = 200,
         patience   = 50,
         imgsz      = 640,
-        batch      = 8,         # fits 8.5 GB VRAM with AMP
+        batch      = 8,         # 8.5 GB VRAM with AMP
         device     = 0,
-        workers    = 0,         # Windows: shm.dll breaks with workers>0
-        cache      = False,     # disk cache is huge and slow to build
-        amp        = True,
+        workers    = 0,         # Windows multiprocessing is flaky
+        cache      = False,        amp        = True,
         project    = PROJECT,
         name       = RUN_NAME,
         exist_ok   = True,
@@ -49,7 +47,7 @@ def main():
         warmup_bias_lr  = 0.1,
         cos_lr          = True,
 
-        # online aug kept low — most augmentation was done offline
+        # most aug already done offline
         hsv_h        = 0.005,
         hsv_s        = 0.2,
         hsv_v        = 0.15,
@@ -84,7 +82,7 @@ def main():
         batch   = 8,
         workers = 0,
         device  = 0,
-        conf    = 0.001,   # low threshold for eval PR curve only
+        conf    = 0.001,   # low conf for PR curve on test only
         iou     = 0.6,
         plots   = True,
         save_json = True,

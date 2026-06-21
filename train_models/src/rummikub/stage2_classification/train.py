@@ -1,7 +1,6 @@
-"""Train the number + color classifier on manifest_aug.csv.
+"""Train the tile number + color CNN.
 
-Best checkpoint is picked by joint val accuracy (both heads correct).
-Also available as: rummikub-train-classifier
+Checkpoint picked by joint val accuracy (both heads right).
 """
 
 import csv
@@ -33,19 +32,19 @@ from rummikub.stage2_classification.model import (
 
 MANIFEST_AUG = DATA_DIR / "stage2_v4" / "manifest_aug.csv"
 RUN_DIR      = MODELS_DIR / "stage2_classification" / "rummikub-classifier-v4"
-DATASET_INFO = DATA_DIR / "stage2_v4" / "dataset_info.json"   # carries preprocess flag
+DATASET_INFO = DATA_DIR / "stage2_v4" / "dataset_info.json"   # has preprocess flag
 
 INPUT_SIZE    = 128
-BATCH         = 128      # 128x128 + AMP: ~1 GB VRAM at bs=128
+BATCH         = 128
 EPOCHS        = 80
-PATIENCE      = 15       # early stop on joint val accuracy
+PATIENCE      = 15       # early stop on joint val acc
 LR            = 3e-4
 LR_MIN        = 1e-6
 WARMUP_EPOCHS = 3
 WEIGHT_DECAY  = 1e-4
 SEED          = 42
 
-# ImageNet normalization (same at train and inference — never change this)
+# ImageNet norm — don't change without retraining
 NORM_MEAN = [0.485, 0.456, 0.406]
 NORM_STD  = [0.229, 0.224, 0.225]
 
@@ -53,7 +52,7 @@ NUM2IDX = {c: i for i, c in enumerate(NUMBER_CLASSES)}
 COL2IDX = {c: i for i, c in enumerate(COLOR_CLASSES)}
 
 def _norm(img_rgb: np.ndarray) -> torch.Tensor:
-    """HWC uint8 RGB -> CHW float32 tensor, ImageNet-normalised."""
+    """RGB uint8 → normalized CHW tensor."""
     x = img_rgb.astype(np.float32) / 255.0
     mean = np.array(NORM_MEAN, dtype=np.float32).reshape(1, 1, 3)
     std  = np.array(NORM_STD,  dtype=np.float32).reshape(1, 1, 3)
@@ -61,6 +60,7 @@ def _norm(img_rgb: np.ndarray) -> torch.Tensor:
     return torch.from_numpy(x.transpose(2, 0, 1))  # CHW
 
 class TileDataset(Dataset):
+    """Manifest rows → (image, number_idx, color_idx)."""
     def __init__(self, rows: list[dict]):
         self.rows = rows
 
@@ -80,7 +80,7 @@ class TileDataset(Dataset):
         )
 
 def make_sampler(rows: list[dict]) -> WeightedRandomSampler:
-    """Upsample thin number classes so each is equally likely per batch."""
+    """Oversample rare numbers so batches aren't dominated by 1–5."""
     num_counts = defaultdict(int)
     for r in rows:
         num_counts[r["number"]] += 1
@@ -88,7 +88,7 @@ def make_sampler(rows: list[dict]) -> WeightedRandomSampler:
     return WeightedRandomSampler(weights, num_samples=len(rows), replacement=True)
 
 class WarmupCosineScheduler:
-    """Linear warmup then cosine anneal."""
+    """Warm up LR linearly, then cosine decay."""
     def __init__(self, optimizer, warmup_epochs, total_epochs, lr_min):
         self.opt           = optimizer
         self.warmup_epochs = warmup_epochs
@@ -98,6 +98,7 @@ class WarmupCosineScheduler:
         self.epoch         = 0
 
     def step(self):
+        """Advance one epoch and update learning rate."""
         self.epoch += 1
         if self.epoch <= self.warmup_epochs:
             lr = self.lr_base * self.epoch / self.warmup_epochs
@@ -110,6 +111,7 @@ class WarmupCosineScheduler:
 
 @torch.no_grad()
 def evaluate(model, loader, device, scaler_ctx):
+    """Val accuracy + loss for both heads."""
     model.eval()
     total = num_correct = col_correct = joint_correct = 0
     num_loss_sum = col_loss_sum = 0.0
@@ -143,7 +145,7 @@ def evaluate(model, loader, device, scaler_ctx):
 
 @torch.no_grad()
 def confusion_analysis(model, loader, device):
-    """Print per-class accuracy and highlight 6/9, red/orange cells."""
+    """Print per-class errors; flag 6/9 and red/orange mixups."""
     model.eval()
     num_cm = defaultdict(Counter)
     col_cm = defaultdict(Counter)
@@ -180,6 +182,7 @@ def confusion_analysis(model, loader, device):
         print(f"  {cls:>7}: {acc:.3f}  errors={errors}{flag}")
 
 def main():
+    """Training loop + test eval + metadata.json."""
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", help="override manifest_aug.csv path")
@@ -297,10 +300,10 @@ def main():
         ])
         results_csv.flush()
 
-        # Save last checkpoint always
+        # always keep last.pt
         torch.save(model.state_dict(), RUN_DIR / "last.pt")
 
-        # Save best checkpoint on joint val accuracy
+        # best.pt tracks joint val acc
         if joint > best_joint:
             best_joint = joint
             patience_counter = 0
@@ -314,8 +317,7 @@ def main():
 
     results_csv.close()
 
-    # Carry the deterministic preprocessing baked into the dataset so inference
-    # applies the exact same step (else train/inference distribution shift).
+    # stash preprocess in metadata so inference matches training
     preprocess = "none"
     if DATASET_INFO.exists():
         preprocess = json.loads(DATASET_INFO.read_text(encoding="utf-8")).get("preprocess", "none")

@@ -1,1 +1,1 @@
-"""Stage 1 — tile detection (YOLO11m, single ``tile`` class)."""
+"""YOLO tile detection (single ``tile`` class)."""

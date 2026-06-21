@@ -1,4 +1,4 @@
-"""Deterministic preprocessors for stage 2 (selected via metadata.json)."""
+"""Optional image tweaks for stage 2 (name comes from metadata.json)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ _CLAHE_GRID = (8, 8)
 _clahe = cv2.createCLAHE(clipLimit=_CLAHE_CLIP, tileGridSize=_CLAHE_GRID)
 
 def clahe_on_l(bgr: np.ndarray) -> np.ndarray:
-    """CLAHE on lightness only. Clamps grid size for very small crops."""
+    """CLAHE on the L channel only."""
     if bgr is None or bgr.size == 0:
         return bgr
     h, w = bgr.shape[:2]
@@ -31,7 +31,7 @@ PREPROCESSORS = {
 }
 
 def preprocess_bgr(bgr: np.ndarray, name: str | None) -> np.ndarray:
-    """Apply the named preprocessor (identity for None / 'none' / unknown)."""
+    """Run named preprocessor, or return image unchanged."""
     if not name:
         return bgr
     fn = PREPROCESSORS.get(name)

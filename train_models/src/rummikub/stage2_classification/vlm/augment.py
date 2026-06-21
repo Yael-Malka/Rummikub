@@ -1,4 +1,4 @@
-"""Augment + split the step3 VLM dataset (80/10/10)."""
+"""Augment step3 VLM crops and split 80/10/10."""
 
 import csv
 import importlib.util
@@ -55,10 +55,9 @@ def scan_step3():
     return rows
 
 def assign_splits(rows, seed=SEED):
-    """Group-stratified 80/10/10 split by stem (no leakage)."""
+    """80/10/10 split by stem, stratified on number+color."""
     rng = random.Random(seed)
 
-    # Group stems per (number, color) stratum
     strata: dict[tuple, list] = defaultdict(list)
     seen = set()
     for r in rows:
@@ -78,7 +77,7 @@ def assign_splits(rows, seed=SEED):
             n_val  = min(n_val,  max(0, n - 1))
             n_test = min(n_test, max(0, n - n_val))
         for i, s in enumerate(unique):
-            if s not in stem_split:   # first-assignment wins on multi-stratum stems
+            if s not in stem_split:
                 if i < n - n_val - n_test:
                     stem_split[s] = "train"
                 elif i < n - n_test:
@@ -89,6 +88,7 @@ def assign_splits(rows, seed=SEED):
     return [{**r, "split": stem_split.get(r["stem"], "train")} for r in rows]
 
 def augment_one(src_path, number, color, stem, n_variants, compose, rng_seed):
+    """Keep the original crop and write N augmented copies."""
     img = cv2.imread(src_path)
     if img is None:
         return []
@@ -99,7 +99,6 @@ def augment_one(src_path, number, color, stem, n_variants, compose, rng_seed):
     rng = random.Random(rng_seed)
     rows = []
 
-    # Copy original
     orig_dst = out_sub / f"{stem}.jpg"
     cv2.imwrite(str(orig_dst), img, [cv2.IMWRITE_JPEG_QUALITY, 95])
     rows.append({
@@ -107,7 +106,6 @@ def augment_one(src_path, number, color, stem, n_variants, compose, rng_seed):
         "number": number, "color": color, "source": "vlm", "split": "train",
     })
 
-    # N augmented variants
     for i in range(n_variants):
         seed_i = rng.randint(0, 2**31)
         random.seed(seed_i); np.random.seed(seed_i)
@@ -121,6 +119,7 @@ def augment_one(src_path, number, color, stem, n_variants, compose, rng_seed):
     return rows
 
 def copy_one(src_path, number, color, stem, split):
+    """Copy a val/test crop into the output tree as-is."""
     dst = OUT_DIR / number / color / Path(src_path).name
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(ROOT / src_path, dst)
@@ -130,6 +129,7 @@ def copy_one(src_path, number, color, stem, split):
     }
 
 def main():
+    """Augment train tiles, copy val/test, write manifest."""
     with open(AUG_CFG, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     n_variants = cfg.get("n_variants", 8)
@@ -177,7 +177,6 @@ def main():
         w = csv.DictWriter(f, fieldnames=["filepath","number","color","source","split"])
         w.writeheader(); w.writerows(manifest_rows)
 
-    # Summary
     from collections import Counter
     tr = [r for r in manifest_rows if r["split"] == "train"]
     vl = [r for r in manifest_rows if r["split"] == "val"]

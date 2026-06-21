@@ -1,4 +1,4 @@
-"""Letterbox to 640², split 80/10/10 by source image, emit ready/ + data.yaml."""
+"""Letterbox to 640², split by source image 80/10/10, write ready/ + data.yaml."""
 
 import random
 import re
@@ -21,10 +21,11 @@ SEED        = 42
 NUM_WORKERS = 8
 IMG_EXTS    = {".jpg", ".jpeg", ".png"}
 
-# Strips  __aug{N}_{function}  suffix added by augment_dataset.py
+# strips __aug{N}_{fn} suffix from augmented filenames
 _AUG_RE = re.compile(r"__aug\d+_\w+$")
 
 def original_stem(stem: str) -> str:
+    """Map augmented stem back to the original image stem."""
     return _AUG_RE.sub("", stem)
 
 def letterbox_and_adjust(
@@ -33,6 +34,7 @@ def letterbox_and_adjust(
     out_img: Path,
     out_lbl: Path,
 ) -> bool:
+    """Letterbox one image and remap its YOLO labels."""
     img = cv2.imread(str(img_path))
     if img is None:
         return False
@@ -76,6 +78,7 @@ def letterbox_and_adjust(
     return True
 
 def main():
+    """Build train/val/test folders and data.yaml."""
     src_img_dir = SOURCE_DIR / "images"
     src_lbl_dir = SOURCE_DIR / "labels"
 

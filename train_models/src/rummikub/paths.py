@@ -1,4 +1,4 @@
-"""Project directory constants — import these instead of hardcoding paths."""
+"""Shared folder paths — use these instead of string literals."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ STAGE2_WEIGHTS   = STAGE2_RUN / "best.pt"
 STAGE2_METADATA  = STAGE2_RUN / "metadata.json"
 
 def resolve_data_path(stored: str) -> Path:
-    """Map a manifest path to DATA_DIR (handles old datasets/ prefix)."""
+    """Turn a manifest-relative path into something under data/."""
     p = Path(str(stored).replace("\\", "/"))
     if p.is_absolute():
         return p

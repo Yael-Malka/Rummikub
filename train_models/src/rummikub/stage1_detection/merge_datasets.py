@@ -1,4 +1,4 @@
-"""Flatten reviewed stage-1 sources into before-preparation/ (single tile class)."""
+"""Merge reviewed stage-1 sources into before-preparation/ (single tile class)."""
 
 import io
 import json
@@ -12,20 +12,24 @@ OUTPUT_DIR = DATA_DIR / "stage1_detection/before-preparation"
 IMG_EXTS   = {".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"}
 
 def ensure_clean(path: Path):
+    """Wipe and recreate a directory."""
     if path.exists():
         shutil.rmtree(path)
     path.mkdir(parents=True)
 
 def save_label(dest: Path, lines: list[str]):
+    """Write a YOLO label file."""
     dest.write_text("\n".join(lines), encoding="utf-8")
 
 def copy_image_as_jpg(src: Path, dest: Path):
+    """Copy or convert image to JPEG."""
     if src.suffix.lower() in (".jpg", ".jpeg"):
         shutil.copy2(src, dest)
     else:
         Image.open(src).convert("RGB").save(dest, "JPEG", quality=95)
 
 def merge_kaggle(img_out: Path, lbl_out: Path) -> tuple[int, int]:
+    """VIA JSON annotations → YOLO labels, class 0."""
     base  = REVIEW_DIR / "kaggle-rummikub"
     imgs  = base / "images"
     json_path = base / "rummikub.json"
@@ -77,6 +81,7 @@ def merge_kaggle(img_out: Path, lbl_out: Path) -> tuple[int, int]:
     return written, skipped
 
 def merge_roboflow(name: str, slug: str, img_out: Path, lbl_out: Path) -> tuple[int, int]:
+    """Copy Roboflow export and remap all classes to 0."""
     base = REVIEW_DIR / name
 
     if not base.exists():
@@ -85,7 +90,7 @@ def merge_roboflow(name: str, slug: str, img_out: Path, lbl_out: Path) -> tuple[
 
     written = skipped = 0
 
-    # Collect all image files across all splits (train / valid / test)
+    # walk train/valid/test splits
     for img_path in base.rglob("*"):
         if img_path.suffix.lower() not in IMG_EXTS:
             continue
@@ -93,7 +98,7 @@ def merge_roboflow(name: str, slug: str, img_out: Path, lbl_out: Path) -> tuple[
             skipped += 1
             continue
 
-        # Find matching label: same stem, sibling labels/ dir
+        # label file lives in sibling labels/ folder
         lbl_path = img_path.parent.parent / "labels" / (img_path.stem + ".txt")
 
         stem    = img_path.stem
@@ -103,7 +108,7 @@ def merge_roboflow(name: str, slug: str, img_out: Path, lbl_out: Path) -> tuple[
         copy_image_as_jpg(img_path, out_img)
 
         if lbl_path.exists():
-            # Remap every class id to 0
+            # everything becomes class 0
             lines = []
             for raw in lbl_path.read_text(encoding="utf-8").splitlines():
                 parts = raw.strip().split()
@@ -111,7 +116,7 @@ def merge_roboflow(name: str, slug: str, img_out: Path, lbl_out: Path) -> tuple[
                     lines.append(f"0 {parts[1]} {parts[2]} {parts[3]} {parts[4]}")
             save_label(out_lbl, lines)
         else:
-            # No label file means no annotations -> write empty label
+            # missing label → empty file
             save_label(out_lbl, [])
 
         written += 1
@@ -119,6 +124,7 @@ def merge_roboflow(name: str, slug: str, img_out: Path, lbl_out: Path) -> tuple[
     return written, skipped
 
 def main():
+    """Run all merge steps and sanity-check image/label pairs."""
     img_out = OUTPUT_DIR / "images"
     lbl_out = OUTPUT_DIR / "labels"
 

@@ -1,4 +1,4 @@
-"""Smoke test — one random image, annotated result in outputs/_scratch/."""
+"""Random test image → annotated output in _scratch/."""
 
 import random
 import shutil
@@ -20,6 +20,7 @@ IMG_EXTS   = {".jpg", ".jpeg", ".png"}
 CONF       = 0.25
 
 def pick_random_image() -> Path:
+    """Grab any image from test/val/train."""
     for d in IMAGE_DIRS:
         if d.exists():
             imgs = [p for p in d.glob("*") if p.suffix.lower() in IMG_EXTS]
@@ -28,6 +29,7 @@ def pick_random_image() -> Path:
     raise FileNotFoundError("No images found in datasets/stage1_detection/ready/.")
 
 def main():
+    """Detect on a random ready/ image and save before/after JPEGs."""
     if not WEIGHTS.exists():
         raise FileNotFoundError(f"Weights not found: {WEIGHTS}")
 
@@ -37,20 +39,18 @@ def main():
     img_path = pick_random_image()
     print(f"Random image : {img_path}")
 
-    # Copy the untouched original into the scratch dir (keeps the root clean).
+    # keep a clean copy in _scratch
     SCRATCH.mkdir(parents=True, exist_ok=True)
     orig_out = SCRATCH / f"test_original_{img_path.stem}.jpg"
     shutil.copy(img_path, orig_out)
     print(f"Original  -> {orig_out}")
 
-    # Run detection.
     results = model.predict(source=str(img_path), conf=CONF, imgsz=640, verbose=False)
     r = results[0]
     n = len(r.boxes)
     print(f"Detected {n} tile(s) at conf>={CONF}")
 
-    # Draw boxes and save annotated copy to the root.
-    annotated = r.plot()  # BGR numpy array with boxes drawn
+    annotated = r.plot()
     pred_out = SCRATCH / f"test_detected_{img_path.stem}.jpg"
     cv2.imwrite(str(pred_out), annotated)
     print(f"Annotated -> {pred_out}")

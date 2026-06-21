@@ -8,6 +8,7 @@ from rummikub.paths import DATA_DIR, MODELS_DIR, PROJECT_ROOT as ROOT
 DEST = DATA_DIR / "stage1_detection/for-review/kaggle-rummikub"
 
 def main():
+    """Download sverrela/rummikub from Kaggle into DEST."""
     DEST.mkdir(parents=True, exist_ok=True)
 
     try:

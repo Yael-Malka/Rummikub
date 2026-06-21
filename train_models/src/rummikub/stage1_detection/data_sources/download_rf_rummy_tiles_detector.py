@@ -13,6 +13,7 @@ FORMAT    = "yolov8"
 DEST      = DATA_DIR / "stage1_detection/for-review/rf-rummy-tiles-detector"
 
 def download(api_key: str):
+    """Fetch dataset zip from Roboflow and extract to DEST."""
     DEST.mkdir(parents=True, exist_ok=True)
 
     print(f"Requesting export URL for {WORKSPACE}/{PROJECT} v{VERSION}...")
@@ -43,6 +44,7 @@ def download(api_key: str):
     print(f"Done -> {DEST.resolve()}")
 
 def main():
+    """Read API key from stdin and run download."""
     api_key = sys.stdin.readline().strip()
     if not api_key:
         print("ERROR: no API key received on stdin")

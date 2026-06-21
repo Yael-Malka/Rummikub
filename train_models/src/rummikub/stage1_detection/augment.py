@@ -1,4 +1,4 @@
-"""Apply a YAML aug config to stage-1 images; writes augmented/ with YOLO labels."""
+"""Offline aug for stage-1 images from a YAML config → augmented/."""
 
 import sys
 import shutil
@@ -17,7 +17,7 @@ IMG_EXTS    = {".jpg", ".jpeg", ".png"}
 MOSAIC_SIZE = 640
 
 def load_labels(path: Path) -> tuple[list[int], list[tuple]]:
-    """Returns (class_ids, bboxes) where bboxes are YOLO (cx,cy,w,h) normalized."""
+    """YOLO labels → class ids + normalized (cx,cy,w,h) boxes."""
     class_ids, bboxes = [], []
     if not path.exists():
         return class_ids, bboxes
@@ -25,7 +25,7 @@ def load_labels(path: Path) -> tuple[list[int], list[tuple]]:
         parts = line.strip().split()
         if len(parts) == 5:
             cx, cy, w, h = (float(x) for x in parts[1:])
-            # Clamp box corners to [0,1] to fix any out-of-bounds annotations
+            # keep boxes inside [0,1]
             x1 = max(0.0, min(1.0, cx - w / 2))
             y1 = max(0.0, min(1.0, cy - h / 2))
             x2 = max(0.0, min(1.0, cx + w / 2))
@@ -36,6 +36,7 @@ def load_labels(path: Path) -> tuple[list[int], list[tuple]]:
     return class_ids, bboxes
 
 def save_labels(path: Path, class_ids: list[int], bboxes: list[tuple]):
+    """Write YOLO label file."""
     lines = [
         f"{c} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}"
         for c, (cx, cy, w, h) in zip(class_ids, bboxes)
@@ -43,13 +44,14 @@ def save_labels(path: Path, class_ids: list[int], bboxes: list[tuple]):
     path.write_text("\n".join(lines), encoding="utf-8")
 
 def normalise_params(params: dict) -> dict:
+    """Turn YAML lists into tuples for albumentations."""
     return {
         k: tuple(v) if isinstance(v, list) else v
         for k, v in (params or {}).items()
     }
 
 def build_transform(function: str, params: dict):
-    """Map a YAML function name to Albumentations. mosaic is handled separately."""
+    """YAML function name → albumentations transform (mosaic handled elsewhere)."""
     p = normalise_params(params)
 
     if function == "mosaic":
@@ -99,6 +101,7 @@ def apply_albumentation(
     class_ids: list[int],
     bboxes: list[tuple],
 ) -> tuple[np.ndarray, list[int], list[tuple]]:
+    """Run one or more transforms, keeping boxes in sync."""
     transforms_list = transform if isinstance(transform, list) else [transform]
     compose = A.Compose(
         transforms_list,
@@ -115,6 +118,7 @@ def load_mosaic_pool(
     img_paths: list[Path],
     lbl_dir: Path,
 ) -> list[tuple[np.ndarray, list[int], list[tuple]]]:
+    """Preload images + labels for mosaic aug."""
     pool = []
     for p in tqdm(img_paths, desc="  loading pool"):
         img = cv2.cvtColor(cv2.imread(str(p)), cv2.COLOR_BGR2RGB)
@@ -127,11 +131,7 @@ def apply_mosaic(
     idx: int,
     size: int = MOSAIC_SIZE,
 ) -> tuple[np.ndarray, list[int], list[tuple]]:
-    """
-    Build a 2×2 mosaic from image[idx] + 3 random other images.
-    Each quadrant gets the image letterboxed into it.
-    Bounding boxes are transformed to mosaic coordinates.
-    """
+    """2×2 mosaic from one image + three random others."""
     import random
     others = random.sample([i for i in range(len(pool)) if i != idx], k=3)
     four   = [pool[idx]] + [pool[i] for i in others]
@@ -174,6 +174,7 @@ def apply_mosaic(
     return canvas, out_cls, out_bbox
 
 def main(config_path: str):
+    """Apply every aug in the config and copy originals too."""
     with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 

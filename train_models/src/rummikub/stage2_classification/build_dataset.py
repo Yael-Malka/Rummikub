@@ -1,4 +1,4 @@
-"""Assemble stage2_v4: merge archived sources, augment train only, write manifest."""
+"""Build stage2_v4: merge archived sources, aug train only, write manifest."""
 
 import argparse
 import csv
@@ -20,7 +20,7 @@ from rummikub.stage2_classification import augment as aug   # build_compose
 from rummikub.common import preprocess_bgr                  # none | clahe_on_l
 from rummikub.paths import ARCHIVE_DIR, DATA_DIR, PROJECT_ROOT
 
-# Source manifests live under _archive/data/ after the v4 refactor.
+# old manifests live under _archive/data/ after the v4 move
 _ARCHIVE_DATA = ARCHIVE_DIR / "data"
 SOURCES  = [
     _ARCHIVE_DATA / "stage2_classification/manifest.csv",
@@ -36,7 +36,7 @@ SEED       = 42
 NUM_WORKERS = 8
 
 def _resolve_source(filepath: str) -> str:
-    """Map manifest paths to files under _archive/data/."""
+    """Absolute path to a crop file under _archive/data/."""
     p = Path(str(filepath).replace("\\", "/"))
     parts = p.parts
     if parts and parts[0] in ("datasets", "data"):
@@ -44,6 +44,7 @@ def _resolve_source(filepath: str) -> str:
     return str((PROJECT_ROOT / p).resolve())
 
 def _read_sources() -> list[dict]:
+    """Load and merge both source manifests."""
     rows = []
     for man in SOURCES:
         for r in csv.DictReader(open(man, encoding="utf-8")):
@@ -51,11 +52,11 @@ def _read_sources() -> list[dict]:
             rows.append(r)
     return rows
 
-# 6 and 9 get full rotation so the model learns the underline, not just orientation.
+# 6 and 9 get full rotation so underline matters, not orientation
 FULL_ROT_CLASSES = {"6", "9"}
 
 def process_crop(r: dict, n_variants: int, compose, compose_fullrot, rng_seed: int) -> list[dict]:
-    """Save the original crop plus augmented train variants."""
+    """Save original + train aug variants for one crop."""
     img = cv2.imread(r["_abs"])
     if img is None:
         return []
@@ -69,18 +70,17 @@ def process_crop(r: dict, n_variants: int, compose, compose_fullrot, rng_seed: i
 
     def _save(im, name):
         dst = out_sub / name
-        # PREPROCESS="none" -> no deterministic bake (v4: CLAHE is a random aug
-        # inside the compose instead). PREPROCESS="clahe_on_l" -> bake (v3).
+        # optional baked preprocess before save
         cv2.imwrite(str(dst), preprocess_bgr(im, PREPROCESS), [cv2.IMWRITE_JPEG_QUALITY, 95])
         out_rows.append({
             "filepath": str(dst.relative_to(PROJECT_ROOT)).replace("\\", "/"),
             "number": number, "color": color, "source": source, "split": split,
         })
 
-    # CLAHE'd original (all splits)
+    # original (all splits)
     _save(img, f"{stem}.jpg")
 
-    # Augmented variants: TRAIN only
+    # aug variants: train only
     if split == "train":
         rng = random.Random(rng_seed)
         for i in range(n_variants):
@@ -91,9 +91,10 @@ def process_crop(r: dict, n_variants: int, compose, compose_fullrot, rng_seed: i
     return out_rows
 
 def run_preview(rows, compose, compose_full, n_samples=8, n_cols=8):
+    """Sample grid for eyeballing aug + 6/9 full-rotation."""
     train = [r for r in rows if r["split"] == "train"]
     random.seed(SEED)
-    # Bias the sample toward 6/9 so the full-rotation behaviour is visible.
+    # bias sample toward 6/9
     sixnine = [r for r in train if r["number"] in FULL_ROT_CLASSES]
     rest    = [r for r in train if r["number"] not in FULL_ROT_CLASSES]
     samples = (random.sample(sixnine, min(4, len(sixnine))) +
@@ -105,7 +106,7 @@ def run_preview(rows, compose, compose_full, n_samples=8, n_cols=8):
         if img is None:
             continue
         comp = compose_full if r["number"] in FULL_ROT_CLASSES else compose
-        # col 0: original (baked preprocess applied) ; cols 1+: augmented
+        # col 0 original, rest augmented
         grid[ri*cell:(ri+1)*cell, 0:cell] = cv2.resize(preprocess_bgr(img, PREPROCESS), (cell, cell))
         for ci in range(1, n_cols):
             v = preprocess_bgr(comp(image=img)["image"], PREPROCESS)
@@ -116,6 +117,7 @@ def run_preview(rows, compose, compose_full, n_samples=8, n_cols=8):
     print(f"Preview -> {out}  (col 0 = original, cols 1+ = augmented; preprocess={PREPROCESS})")
 
 def main(preview_only=False):
+    """Build crops_aug/ + manifest_aug.csv + dataset_info.json."""
     import copy
     with open(CONFIG, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
@@ -123,13 +125,13 @@ def main(preview_only=False):
     aug_cfgs   = cfg.get("augmentations", [])
     compose    = aug.build_compose(aug_cfgs)
 
-    # Full-rotation variant for 6/9: same pipeline, rotation widened to ±180°.
+    # wider rotation pipeline for 6/9
     cfgs_full = copy.deepcopy(aug_cfgs)
     for c in cfgs_full:
         if c.get("function") == "rotate":
             c.setdefault("params", {})
             c["params"]["limit"] = 180
-            c["params"]["p"] = 1.0   # always rotate so all orientations are seen
+            c["params"]["p"] = 1.0   # always rotate for 6/9
     compose_full = aug.build_compose(cfgs_full)
 
     rows  = _read_sources()
@@ -193,8 +195,7 @@ if __name__ == "__main__":
                     help="deterministic bake; 'none' = CLAHE only as a random aug (v4)")
     args = ap.parse_args()
 
-    # Optional overrides so the same script builds v3 (baked CLAHE) or v4
-    # (CLAHE as a random augmentation, no bake -> lean inference).
+    # CLI overrides for v3 vs v4 builds
     if args.config:
         CONFIG = Path(args.config) if Path(args.config).is_absolute() else Path(__file__).parent / "configs" / args.config
     if args.out:

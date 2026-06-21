@@ -1,4 +1,4 @@
-"""Pull labeled crops out of Kaggle + Konstantin into stage2 manifest.csv."""
+"""Extract labeled crops from Kaggle + Konstantin → stage2 manifest.csv."""
 
 import cv2
 import numpy as np
@@ -39,10 +39,7 @@ NUM_WORKERS = 8
 SEED        = 42
 
 def collect_kaggle_annotations():
-    """
-    Returns list of dicts:
-      { image_path, x, y, w, h, number, color, source, stem, region_idx }
-    """
+    """Parse Kaggle VIA JSON into flat annotation dicts."""
     with open(KAGGLE_JSON, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -61,7 +58,7 @@ def collect_kaggle_annotations():
             color  = normalize_color(str(ra.get("color", "")))
             if not number or not color:
                 continue
-            # joker override
+            # joker tiles have no real color
             if number == "joker":
                 color = "joker"
             annotations.append({
@@ -79,16 +76,13 @@ def collect_kaggle_annotations():
     return annotations
 
 def collect_konst_annotations():
-    """
-    Parse YOLO-format labels from train + test splits (skip valid — it is empty).
-    Returns same dict structure as collect_kaggle_annotations().
-    """
+    """Parse Konstantin YOLO labels (train + test) into the same dict shape."""
     with open(KONST_YAML, "r") as f:
         ydata = yaml.safe_load(f)
     class_names = ydata["names"]  # list[str], e.g. ['10_black', ...]
 
     def parse_class(class_name: str):
-        # e.g. '10_black' -> ('10','black'), 'j_black' -> ('joker','joker')
+        # e.g. 10_black, j_black → joker
         parts = class_name.rsplit("_", 1)
         if len(parts) != 2:
             return None, None
@@ -106,7 +100,7 @@ def collect_konst_annotations():
     for img_dir, lbl_dir in splits:
         for lbl_file in sorted(lbl_dir.glob("*.txt")):
             stem = lbl_file.stem
-            # find matching image (jpg/jpeg/png)
+            # match image by stem
             img_path = None
             for ext in (".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"):
                 candidate = img_dir / (stem + ext)
@@ -150,11 +144,12 @@ def collect_konst_annotations():
     return annotations
 
 _image_cache: dict = {}
-_image_cache_lock = None  # will use ThreadPoolExecutor thread-safety via per-key locking
+_image_cache_lock = None
 import threading
 _image_cache_lock = threading.Lock()
 
 def load_image(path: Path):
+    """Thread-safe cached cv2.imread."""
     key = str(path)
     with _image_cache_lock:
         if key in _image_cache:
@@ -165,11 +160,7 @@ def load_image(path: Path):
     return img
 
 def process_annotation(ann: dict):
-    """
-    Extract, letterbox, save one crop.
-    Returns (record_dict, skip_reason_or_None).
-    record_dict has keys: filepath, number, color, source, stem
-    """
+    """Crop one annotation, letterbox, save JPEG. Returns (record, skip_reason)."""
     img_path = ann["image_path"]
     if not img_path.exists():
         return None, f"missing_file:{img_path.name}"
@@ -184,7 +175,7 @@ def process_annotation(ann: dict):
     if source == "kaggle":
         x, y, w, h = ann["x"], ann["y"], ann["w"], ann["h"]
     else:
-        # YOLO normalized -> pixel
+        # YOLO norm coords → pixels
         cx, cy = ann["cx"] * img_w, ann["cy"] * img_h
         bw, bh = ann["bw"] * img_w, ann["bh"] * img_h
         x = int(round(cx - bw / 2))
@@ -203,7 +194,7 @@ def process_annotation(ann: dict):
     stem   = ann["stem"]
     idx    = ann["region_idx"]
 
-    # sanitize stem for filesystem
+    # safe filename
     safe_stem = re.sub(r"[^\w\-]", "_", stem)
     filename  = f"{source}_{safe_stem}_{idx}.jpg"
     out_path  = OUT_CROPS_DIR / number / color / filename
@@ -222,25 +213,12 @@ def process_annotation(ann: dict):
     }, None
 
 def make_splits(records: list[dict]) -> list[dict]:
-    """
-    Assign split='train'/'val'/'test' to each record.
-    Strategy:
-      1. Group image stems within each source.
-      2. For each (number, color) stratum, collect the image stems that
-         contribute at least one crop of that label.
-      3. Shuffle stems per stratum (seeded), then assign 80/10/10.
-      4. Any stem not assigned via stratification (because it only appears in
-         already-assigned strata) inherits from those assignments; otherwise
-         default to 'train'.
-
-    Since one stem can appear in multiple strata, we use majority-vote across
-    strata to decide its split, then re-assign deterministically.
-    """
+    """80/10/10 by image stem, stratified on (number, color)."""
     rng = random.Random(SEED)
 
-    # stem -> set of (number,color) pairs
-    stem_labels: dict[tuple, set] = defaultdict(set)  # (source,stem) -> strata
-    # strata -> list of (source,stem)
+    # stem → labels it contributes
+    stem_labels: dict[tuple, set] = defaultdict(set)
+    # (number,color) → stems in that stratum
     strata_stems: dict[tuple, list] = defaultdict(list)
 
     seen_stems: set = set()
@@ -250,19 +228,18 @@ def make_splits(records: list[dict]) -> list[dict]:
         stem_labels[key].add(label)
         if key not in seen_stems:
             seen_stems.add(key)
-            strata_stems[label].append(key)  # NOTE: a stem appears once per stratum it contributes to
+            strata_stems[label].append(key)
 
-    # We need: for each unique (source,stem) key, decide its split.
-    # Approach: for each stratum shuffle stems, split 80/10/10, record votes.
+    # vote on split per (source, stem)
     stem_votes: dict[tuple, list] = defaultdict(list)
 
     for label, stems_list in strata_stems.items():
-        unique_stems = list(dict.fromkeys(stems_list))  # preserve order, dedup
+        unique_stems = list(dict.fromkeys(stems_list))
         rng.shuffle(unique_stems)
         n = len(unique_stems)
         n_val  = max(1, int(round(n * 0.10)))
         n_test = max(1, int(round(n * 0.10)))
-        # ensure we don't over-allocate
+        # don't eat the whole set with val+test
         if n_val + n_test >= n:
             n_val  = min(n_val,  max(0, n - 1))
             n_test = min(n_test, max(0, n - n_val))
@@ -276,7 +253,7 @@ def make_splits(records: list[dict]) -> list[dict]:
             else:
                 stem_votes[stem_key].append("test")
 
-    # Resolve votes by majority; ties -> train
+    # majority vote; ties → train
     stem_split: dict[tuple, str] = {}
     for stem_key, votes in stem_votes.items():
         counts = {"train": 0, "val": 0, "test": 0}
@@ -284,7 +261,7 @@ def make_splits(records: list[dict]) -> list[dict]:
             counts[v] += 1
         stem_split[stem_key] = max(counts, key=lambda k: (counts[k], k == "train"))
 
-    # Default for any stems that somehow escaped voting
+    # anything that slipped through
     for rec in records:
         key = (rec["source"], rec["stem"])
         if key not in stem_split:
@@ -298,7 +275,7 @@ def make_splits(records: list[dict]) -> list[dict]:
     return result
 
 def main():
-    print("=" * 60)
+    """Collect annotations, extract crops, assign splits, write manifest."""
     print("Stage 2 Dataset Builder")
     print("=" * 60)
 

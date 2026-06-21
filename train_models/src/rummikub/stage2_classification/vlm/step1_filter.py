@@ -1,4 +1,4 @@
-"""VLM pipeline step 1 — YOLO detect, then ask the model if each crop is a real tile."""
+"""Step 1: YOLO detect tiles, then ask the VLM which crops are real."""
 
 import argparse, base64, importlib.util, json, os, re, sys, time, zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,15 +21,16 @@ USER_PROMPT = (
 )
 
 def b64(img):
+    """Encode a BGR image as a base64 JPEG string."""
     _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 92])
     return base64.b64encode(buf.tobytes()).decode()
 
 def detect_model(endpoint):
+    """Pick a vision-capable model from the LM Studio server."""
     r = requests.get(f"{endpoint}/models", timeout=10)
     r.raise_for_status()
     d = r.json().get("data", [])
     if not d: sys.exit("No model loaded in LM Studio.")
-    # Prefer a vision/VL model; fall back to first entry.
     for m in d:
         mid = m["id"].lower()
         if any(k in mid for k in ("vl", "vision", "qwen2.5-vl", "llava", "pixtral")):
@@ -37,6 +38,7 @@ def detect_model(endpoint):
     return d[0]["id"]
 
 def _call(endpoint, model, img):
+    """One chat/completions call; returns raw YES/NO text."""
     r = requests.post(f"{endpoint}/chat/completions", json={
         "model": model, "temperature": 0.0, "max_tokens": 5,
         "messages": [
@@ -51,23 +53,24 @@ def _call(endpoint, model, img):
     return r.json()["choices"][0]["message"]["content"].strip().upper()
 
 def query(endpoint, model, img, max_retries=6):
-    """Call VLM; on server error retry with exponential back-off. Returns True/False/None."""
+    """Call VLM with backoff on errors; returns True, False, or None."""
     delay = 2.0
     for attempt in range(max_retries):
         try:
             resp = _call(endpoint, model, img)
             if "YES" in resp: return True
             if "NO"  in resp: return False
-            # Unparseable reply — retry immediately (no sleep)
         except requests.exceptions.RequestException:
             if attempt < max_retries - 1:
                 time.sleep(delay); delay = min(delay * 2, 30)
     return None  # exhausted
 
 def decode(data):
+    """Decode raw image bytes to a BGR numpy array."""
     return cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
 
 def save_grid(tiles, path, cols=8, cell=128, label_fn=None):
+    """Write a thumbnail grid JPEG for quick visual review."""
     n = len(tiles)
     if n == 0: return
     rows = (n + cols - 1) // cols
@@ -84,6 +87,7 @@ def save_grid(tiles, path, cols=8, cell=128, label_fn=None):
     cv2.imwrite(str(path), grid, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
 def main():
+    """Run detection and VLM filtering on a zip of board photos."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--zip",      required=True)
     ap.add_argument("--endpoint", default="http://localhost:1234/v1")
@@ -108,7 +112,6 @@ def main():
         sys.exit(f"Cannot reach LM Studio at {endpoint}. Start the server first.")
     print(f"Model: {model}  workers: {args.workers}")
 
-    # Load zip
     zp = ROOT / args.zip if not Path(args.zip).is_absolute() else Path(args.zip)
     with zipfile.ZipFile(zp) as z:
         names = sorted(n for n in z.namelist()
@@ -122,7 +125,6 @@ def main():
     with ThreadPoolExecutor(max_workers=8) as pool:
         image_items = list(tqdm(pool.map(read_img, names), total=len(names), desc="Loading"))
 
-    # YOLO detection
     det = YOLO(str(S1_WEIGHTS))
     tile_jobs = []
     print(f"\nDetecting tiles ...")
@@ -143,7 +145,6 @@ def main():
             })
     print(f"Total tiles detected: {len(tile_jobs)}")
 
-    # VLM filter
     print(f"\nVLM filtering with {args.workers} workers ...")
     decisions = {}
     def filter_one(t):
@@ -155,7 +156,6 @@ def main():
             tid, dec = fut.result()
             decisions[tid] = dec
 
-    # Save + collect results
     records, accepted, rejected = [], [], []
     for t in tile_jobs:
         dec = decisions[t["tile_id"]]
