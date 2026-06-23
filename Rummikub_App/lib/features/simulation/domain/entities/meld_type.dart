@@ -1,4 +1,0 @@
-enum MeldType {
-  group,
-  run,
-}

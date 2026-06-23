@@ -1,28 +1,40 @@
-# Rummikub App
+# Rummikub — Train Models
 
-Flutter Android app — Rummikub assistant (simulation + optimal moves).
+Python pipeline for training and running Rummikub tile detection and classification models.
+
+## Layout
+
+```
+train_models/
+  src/rummikub/
+    stage1_detection/      # YOLO tile detection
+    stage2_classification/ # tile number/color classifier
+    stage3_board/          # board reconstruction from detections
+    pipeline/              # end-to-end detect + classify
+    tools/                 # dataset download & inspection
+```
+
+Data, trained weights, and outputs live under `train_models/` (`data/`, `models/`, `weights/`, `outputs/`) and are gitignored.
 
 ## Setup
 
-1. Install [Flutter](https://docs.flutter.dev/get-started/install) and Android SDK.
-2. From this folder:
+From `train_models/`:
 
 ```bash
-flutter pub get
-flutter analyze
-flutter test
-flutter run
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+pip install ultralytics albumentations opencv-python torch tqdm pyyaml roboflow
+set PYTHONPATH=src
 ```
 
-## MVP (phases 1–8)
+Adjust dependencies to match your environment and GPU setup.
 
-- Simulate legal rack + table
-- Find and show all optimal moves (max tiles from rack)
-- First-meld toggle (30+ points)
-- Step-by-step explanation per move (play + table reorganize)
-- Restore last session via Hive on app restart
-- Light / dark theme
+## Run
 
-## Next (future)
+Examples (from `train_models/`, with `PYTHONPATH=src`):
 
-- Camera / tile recognition (`features/vision/`)
+```bash
+python -m rummikub.stage1_detection.train
+python -m rummikub.stage2_classification.train
+python -m rummikub.pipeline.detect_and_classify
+```

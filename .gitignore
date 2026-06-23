@@ -2,21 +2,34 @@
 .cursor/
 **/.cursor/
 
-# --- Dart / Flutter ---
-.dart_tool/
-**/.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-build/
-**/build/
-*.g.dart
-*.freezed.dart
-*.mocks.dart
-coverage/
-doc/api/
+# --- Python ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- ML artifacts (large; keep local) ---
+train_models/data/
+train_models/models/
+train_models/weights/
+train_models/outputs/
+train_models/_archive/
+*.pt
+*.onnx
+*.pth
+*.ckpt
 
 # --- IDE ---
 .idea/
@@ -28,30 +41,10 @@ doc/api/
 !.vscode/launch.json
 !.vscode/settings.json
 
-# --- Android ---
-**/android/**/gradle-wrapper.jar
-**/android/.gradle/
-**/android/captures/
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
-**/android/key.properties
-**/*.jks
-**/*.keystore
-
-# --- iOS / macOS ---
-**/ios/Pods/
-**/ios/.symlinks/
-**/ios/Flutter/Flutter.framework
-**/ios/Flutter/Flutter.podspec
-**/ios/ServiceDefinitions.json
-**/ios/Runner/GeneratedPluginRegistrant.*
-**/macos/Flutter/ephemeral/
+# --- OS ---
 .DS_Store
 **/.DS_Store
-
-# --- Windows / Linux (desktop) ---
-**/windows/flutter/ephemeral/
-**/linux/flutter/ephemeral/
+Thumbs.db
 
 # --- Env / secrets ---
 .env
