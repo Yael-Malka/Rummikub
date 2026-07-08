@@ -1,4 +1,4 @@
-"""Meld checks used in tests."""
+"""Check that a board layout is legal."""
 
 from __future__ import annotations
 
@@ -9,13 +9,17 @@ from .solver import RUN_MIN, GROUP_SIZES, Solution
 
 
 def _split(meld):
-    """Split a meld into real tiles and joker count."""
+    """Separate real tiles from jokers in a meld list.
+    Returns (real_tiles, joker_count) for run/group validation helpers.
+    """
     reals = [tuple(t) for t in meld if not is_joker(t)]
     return reals, len(meld) - len(reals)
 
 
 def is_valid_run(meld) -> bool:
-    """Check if meld is a legal same-color run."""
+    """True if meld is a same-color consecutive run with optional joker gaps.
+    Jokers can fill missing values inside 1..13 but cannot change color.
+    """
     reals, j = _split(meld)
     if len(meld) < RUN_MIN or j > MAX_JOKERS or not reals:
         return False
@@ -33,7 +37,9 @@ def is_valid_run(meld) -> bool:
 
 
 def is_valid_group(meld) -> bool:
-    """Check if meld is a legal same-value group."""
+    """True if meld is a same-number group with distinct colors, size 3 or 4.
+    Jokers count toward size but real tiles must share one value.
+    """
     reals, j = _split(meld)
     if len(meld) not in GROUP_SIZES or j > MAX_JOKERS or not reals:
         return False
@@ -43,12 +49,17 @@ def is_valid_group(meld) -> bool:
 
 
 def is_valid_meld(meld) -> bool:
-    """Check if meld is a valid run or group."""
+    """True if meld is a legal run or group under Rummikub rules.
+    Convenience wrapper used by validate_solution on every output meld.
+    """
     return is_valid_run(meld) or is_valid_group(meld)
 
 
 def validate_solution(board, hand, sol: Solution) -> bool:
-    """Check solver output against game rules (test oracle; raises AssertionError on failure)."""
+    """Assert solver output is legal and conserves every tile.
+    Checks each meld, then verifies new board == old board + placed tiles
+    and that nothing was played from outside the hand.
+    """
     board_tiles = Counter(tuple(t) for meld in board for t in meld)
     placed = Counter(tuple(t) for t in sol.placed)
     hand_cnt = Counter(tuple(t) for t in hand)

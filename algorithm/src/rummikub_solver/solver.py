@@ -1,4 +1,12 @@
-"""DP solver for one Rummikub move with full table rearrangement."""
+"""Rummikub move solver (DP over values 1..13).
+
+The board is processed value by value (1 through 13). At each value we decide
+how to use the tiles of that number: extend open runs, start new runs, or form
+groups (sets of same value, different colors). Dynamic programming keeps the
+best partial score for every reachable board state.
+
+Public API: solve(), solve_first_drop(), optimal_move().
+"""
 
 from __future__ import annotations
 
@@ -7,46 +15,57 @@ from itertools import combinations, combinations_with_replacement, product
 
 from .tiles import NUM_VALUES, NUM_COLORS, MAX_COPIES, MAX_JOKERS, JOKER, Tile
 
-RUN_MIN = 3           # minimum legal run length; also the cap of the DP state
-GROUP_SIZES = (3, 4)  # legal group sizes
+# Rummikub rules encoded as constants
+RUN_MIN = 3           # a run needs at least 3 consecutive tiles of one color
+GROUP_SIZES = (3, 4)  # a group is 3 or 4 tiles of the same value
 MAX_GROUP = 4
-# A run open at value v consumes one slot at (v, c): at most 2 real copies
-# plus at most 2 jokers exist, so at most 4 runs of one color overlap.
+
+# How many open (incomplete) runs of one color can overlap at a single value.
+# Each open run holds one slot; we have at most 2 real copies + 2 jokers per tile.
 MAX_OPEN = MAX_COPIES + MAX_JOKERS
-# Groups of one value draw on 4 colors x 2 copies + 2 jokers = 10 slots,
-# each group needs >= 3 of them: at most 3 groups per value.
+
+# At one value we can form at most this many groups in parallel.
+# 4 colors x 2 copies + 2 jokers = 10 slots; each group needs >= 3 tiles.
 MAX_GROUPS_PER_VALUE = (NUM_COLORS * MAX_COPIES + MAX_JOKERS) // RUN_MIN
 
-_OK_SIZES = frozenset({0, *GROUP_SIZES})
+_OK_SIZES = frozenset({0, *GROUP_SIZES})  # valid group sizes (0 = not started)
 
-# Per-color run states: multisets of capped run lengths (35 states).
-
+# Run-state encoding per color
+# An open run is tracked by its current length (1, 2, or 3=complete).
+# Up to MAX_OPEN runs can be open at once, giving 35 distinct states per color.
+# Example: (1, 2) means one run of length 1 and one of length 2.
 COLOR_STATES = tuple(
     s
     for size in range(MAX_OPEN + 1)
     for s in combinations_with_replacement((1, 2, RUN_MIN), size)
 )
 STATE_INDEX = {s: i for i, s in enumerate(COLOR_STATES)}
-N_CS = len(COLOR_STATES)                       # 35
-P = tuple(N_CS ** c for c in range(NUM_COLORS))  # packed-state digit weights
-JMULT = N_CS ** NUM_COLORS                     # joker counter lives above the digits
+N_CS = len(COLOR_STATES)  # 35
 
-# Color states whose runs are all complete (length >= RUN_MIN): the only
-# ones admissible after the last value has been processed.
+# Pack all 4 color states + joker count into one integer key.
+# Layout: [jokers_used][color3][color2][color1][color0], each color digit is 0..34.
+P = tuple(N_CS ** c for c in range(NUM_COLORS))
+JMULT = N_CS ** NUM_COLORS
+
+# After processing value 13, every open run must be complete (length 3).
 CLOSEABLE = frozenset(
     i for i, s in enumerate(COLOR_STATES) if all(x == RUN_MIN for x in s)
 )
 
 
 def _extension_assignments(lengths, target):
-    """Enumerate ways to extend or close open runs to reach target lengths."""
+    """Given current run lengths, list ways to extend some runs to reach target.
+
+    Used during reconstruction: the DP only stores counts (e, g, jr), not which
+    physical run received which tile. This function picks a valid assignment.
+    """
     n = len(lengths)
     tlist = list(target)
     r = len(tlist)
     for mask in range(1 << n):
         ext = [i for i in range(n) if mask >> i & 1]
         if any(lengths[i] < RUN_MIN for i in range(n) if not mask >> i & 1):
-            continue  # an unextended run closes here, so it must be complete
+            continue  # unextended runs must already be complete (length 3)
         s = r - len(ext)
         if s < 0:
             continue
@@ -56,26 +75,31 @@ def _extension_assignments(lengths, target):
 
 
 def _reachable(old, new):
-    """Return True if color state old can transition to new in one step."""
+    """True if run state old can become new in one DP step (one tile placed)."""
     for _ in _extension_assignments(list(old), new):
         return True
     return False
 
 
 def _build_options():
-    """Precompute legal per-cell transitions for each color state and tile count."""
+    """Precompute all legal per-color transitions for one tile at one value.
+
+    Key: (old_state_index, tiles_on_board, tiles_in_hand) for this color.
+    Value: list of (new_state, tiles_to_group, tiles_to_extend, jokers_used).
+    Built once at import time into OPTS.
+    """
     opts = {}
     for oi, old in enumerate(COLOR_STATES):
-        for t in range(MAX_COPIES + 1):
-            for h in range(MAX_COPIES + 1 - t):
+        for t in range(MAX_COPIES + 1):          # board tiles of this (value, color)
+            for h in range(MAX_COPIES + 1 - t):  # hand tiles of this (value, color)
                 acc = []
                 for ni, new in enumerate(COLOR_STATES):
                     if not _reachable(old, new):
                         continue
                     r = len(new)
-                    for jr in range(min(r, MAX_JOKERS) + 1):
-                        for g in range(MAX_COPIES + 1):
-                            e = (r - jr) + g - t
+                    for jr in range(min(r, MAX_JOKERS) + 1):  # jokers placed in runs
+                        for g in range(MAX_COPIES + 1):       # tiles sent to a group
+                            e = (r - jr) + g - t  # tiles used to extend runs
                             if 0 <= e <= h:
                                 acc.append((ni, g, e, jr))
                 opts[(oi, t, h)] = tuple(acc)
@@ -84,8 +108,8 @@ def _build_options():
 
 OPTS = _build_options()
 
-# Group progress: sorted triples of in-progress group sizes.
-
+# Group-building state: track sizes of groups currently being formed at this value.
+# Up to MAX_GROUPS_PER_VALUE groups can be built in parallel (sorted triple of sizes).
 GP3_STATES = tuple(
     combinations_with_replacement(range(MAX_GROUP + 1), MAX_GROUPS_PER_VALUE)
 )
@@ -94,7 +118,7 @@ GP3_EMPTY = GP3_INDEX[(0,) * MAX_GROUPS_PER_VALUE]
 
 
 def _compositions(total, parts):
-    """Split total into parts nonnegative integers that sum to total."""
+    """Split total into parts nonnegative integers (distribute jokers across groups)."""
     if parts == 1:
         yield (total,)
         return
@@ -104,12 +128,13 @@ def _compositions(total, parts):
 
 
 def _build_gp3():
-    """Build group-state transition and finish tables for the DP."""
+    """Precompute group transitions: add a tile to a group, finish groups with jokers."""
     nxt = [[() for _ in range(MAX_COPIES + 1)] for _ in GP3_STATES]
     fin = [[False] * (MAX_JOKERS + 1) for _ in GP3_STATES]
     for i, trip in enumerate(GP3_STATES):
         for g in range(MAX_COPIES + 1):
             outs = set()
+            # Pick g distinct groups and add one tile from this color to each
             for pos in combinations(range(MAX_GROUPS_PER_VALUE), g):
                 if all(trip[p] < MAX_GROUP for p in pos):
                     nt = list(trip)
@@ -120,8 +145,7 @@ def _build_gp3():
         for jg in range(MAX_JOKERS + 1):
             for dist in _compositions(jg, MAX_GROUPS_PER_VALUE):
                 sizes = tuple(trip[k] + dist[k] for k in range(MAX_GROUPS_PER_VALUE))
-                # jokers-only "groups" (size from jokers alone) are rejected
-                # automatically: jg <= 2 can never lift a 0 to {3, 4}.
+                # Every group must end at size 0 (unused), 3, or 4
                 if all(sz in _OK_SIZES for sz in sizes):
                     fin[i][jg] = True
                     break
@@ -132,7 +156,11 @@ GP3_NEXT, GP3_FINISH = _build_gp3()
 
 
 def _group_witness(gvec, jg):
-    """Rebuild concrete groups from per-color counts and joker use."""
+    """Rebuild which colors belong to which group after DP finishes a value.
+
+    gvec[c] = how many groups color c contributed to.
+    jg = jokers distributed across groups at this value.
+    """
     color_choices = [
         list(combinations(range(MAX_GROUPS_PER_VALUE), gvec[c]))
         for c in range(NUM_COLORS)
@@ -152,24 +180,25 @@ def _group_witness(gvec, jg):
 
 @dataclass
 class Solution:
-    """Internal optimal move: placed hand tiles, full meld list, and score."""
+    """Solver output: tiles placed from hand and resulting board melds."""
 
-    placed: list = field(default_factory=list)
-    melds: list = field(default_factory=list)
-    objective: int = 0
+    placed: list = field(default_factory=list)  # tiles taken from hand
+    melds: list = field(default_factory=list)   # final board layout as list of melds
+    objective: int = 0                          # score the DP optimized
+    points: int = 0                             # Rummikub point total (first-drop only)
 
     @property
     def is_draw(self) -> bool:
-        """True when no hand tile was placed."""
+        """True when the best move is to pass without placing tiles."""
         return not self.placed
 
 
 class InfeasibleBoardError(ValueError):
-    """Raised when board tiles cannot form any legal meld layout."""
+    """Raised when the board tiles cannot be arranged into valid melds."""
 
 
 def _as_tile(t) -> Tile:
-    """Normalize input to a Tile tuple or JOKER."""
+    """Normalize input to (value, color) or JOKER. Accepts tuples or joker aliases."""
     try:
         v, c = t
     except (TypeError, ValueError):
@@ -186,7 +215,7 @@ def _as_tile(t) -> Tile:
 
 
 def _tile_counts(tile_list):
-    """Count real tiles per (value, color)."""
+    """Count real (non-joker) tiles: cnt[value][color]."""
     cnt = [[0] * NUM_COLORS for _ in range(NUM_VALUES + 1)]
     for (v, c) in tile_list:
         cnt[v][c] += 1
@@ -194,7 +223,13 @@ def _tile_counts(tile_list):
 
 
 def solve(board, hand, weight=None, joker_weight=None) -> Solution:
-    """Find the best single move using internal tile tuples."""
+    """Find the highest-scoring legal rearrangement of board + hand tiles.
+
+  Board melds must stay valid; any subset of the hand may be played.
+  weight(v) scores each real tile of value v placed from hand (default 1).
+  joker_weight scores each hand joker used (default 0 when weight is set, else 1).
+    """
+    # Flatten input melds into tile lists and validate counts
     board_tiles = [_as_tile(t) for meld in board for t in meld]
     hand_tiles = [_as_tile(t) for t in hand]
 
@@ -204,8 +239,8 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
     if n_jokers > MAX_JOKERS:
         raise ValueError(f"more than {MAX_JOKERS} jokers in play")
 
-    T = _tile_counts(t for t in board_tiles if t != JOKER)
-    H = _tile_counts(t for t in hand_tiles if t != JOKER)
+    T = _tile_counts(t for t in board_tiles if t != JOKER)  # board counts
+    H = _tile_counts(t for t in hand_tiles if t != JOKER)   # hand counts
     for v in range(1, NUM_VALUES + 1):
         for c in range(NUM_COLORS):
             if T[v][c] + H[v][c] > MAX_COPIES:
@@ -213,6 +248,7 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
                     f"more than {MAX_COPIES} copies of tile {(v, c)} in play"
                 )
 
+    # Scoring: w[v] per real tile of value v; wj per hand joker consumed
     w = [0] * (NUM_VALUES + 1)
     for v in range(1, NUM_VALUES + 1):
         w[v] = 1 if weight is None else weight(v)
@@ -225,11 +261,11 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
     if wj < 0:
         raise ValueError("joker weight must be nonnegative")
 
-    # forward DP
-    # dp: packed key -> best score, where key = j_used * JMULT + per-color
-    # state digits (base 35).  parents[v-1]: packed key after value v ->
-    # (predecessor key, packed decisions).  Decisions: 6 bits per color
-    # encoding e + 3*g + 9*jr, plus jg (group jokers) in bits 24+.
+    # Phase 1: forward DP, one layer per value 1..13
+    # dp maps packed_state_key -> best score so far.
+    # parents[v] stores back-pointers to reconstruct decisions.
+    # Per-color decision is packed in 6 bits: e (extend) + 3*g (group) + 9*jr (joker in run).
+    # Bits 24+ hold jg (jokers spent finishing groups at this value).
     dp = {0: 0}
     parents = []
     for v in range(1, NUM_VALUES + 1):
@@ -237,11 +273,13 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
         layer = {}
         for s, sc in dp.items():
             layer[(s, GP3_EMPTY)] = (sc, s, 0)
-        # Contract one color at a time, sharing the joker budget.
+
+        # Process each color at this value, updating run states and group progress
         for c in range(NUM_COLORS):
             mult = P[c]
             shift = 6 * c
             t_vc, h_vc = T[v][c], H[v][c]
+            # Pre-fold OPTS transitions for this color's tile counts
             folded = tuple(
                 tuple(
                     ((ni - oi) * mult + jr * JMULT, g, e * wv, jr,
@@ -254,7 +292,7 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
             nxt = {}
             nxt_get = nxt.get
             for (skey, gp), (sc, prev, dec) in layer.items():
-                javail = n_jokers - skey // JMULT
+                javail = n_jokers - skey // JMULT  # jokers still available
                 gp_row = GP3_NEXT[gp]
                 for delta, g, gain, jr, dcode in folded[skey // mult % N_CS]:
                     if jr > javail:
@@ -268,7 +306,8 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
                         if cur is None or nv > cur[0]:
                             nxt[k] = (nv, prev, nd)
             layer = nxt
-        # Complete the value's groups (optionally with jokers) and collapse.
+
+        # Finish any groups at this value (optionally using jokers), collapse layer -> dp
         ndp, npar = {}, {}
         for (skey, gp), (sc, prev, dec) in layer.items():
             fin = GP3_FINISH[gp]
@@ -287,14 +326,13 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
         dp = ndp
         parents.append(npar)
 
-    # pick best final state
-    # All open runs must be complete, all board jokers must have been used;
-    # each hand joker used scores wj.
+    # Phase 2: pick the best terminal state
+    # Requirements: all runs closed, all board jokers used, maximize score + hand joker bonus
     best_key, best_total = None, None
     for skey, sc in dp.items():
         j_used = skey // JMULT
         if j_used < jb:
-            continue
+            continue  # board jokers must all be reassigned
         if all(skey // P[c] % N_CS in CLOSEABLE for c in range(NUM_COLORS)):
             total = sc + wj * (j_used - jb)
             if best_total is None or total > best_total:
@@ -304,7 +342,7 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
             "the board tiles cannot be arranged into valid melds"
         )
 
-    # backtrack decisions
+    # Phase 3: backtrack decisions value by value (13 down to 1)
     seq = []
     cur = best_key
     for v in range(NUM_VALUES, 0, -1):
@@ -313,10 +351,10 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
         cur = prev
     seq.reverse()
 
-    # rebuild melds and placed tiles
+    # Phase 4: replay decisions forward to build melds and the placed-from-hand list
     melds = []
     placed = []
-    active = [[] for _ in range(NUM_COLORS)]  # per color: list of tile lists
+    active = [[] for _ in range(NUM_COLORS)]  # per color: list of open runs (each run is a list)
     for v in range(1, NUM_VALUES + 1):
         skey, dec = seq[v - 1]
         for c in range(NUM_COLORS):
@@ -329,22 +367,22 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
                 ext, n_new = next(
                     _extension_assignments([len(r) for r in runs], target)
                 )
-            except StopIteration:  # cannot happen for a DP-certified path
+            except StopIteration:
                 raise AssertionError("run reconstruction failed") from None
             ext_set = set(ext)
             recipients = [runs[i] for i in ext]
+            # Runs not extended close here and become finished melds
             for i, run in enumerate(runs):
-                if i not in ext_set:  # run closes just before value v
+                if i not in ext_set:
                     melds.append(run)
             recipients.extend([] for _ in range(n_new))
-            # Each recipient absorbs one slot at (v, c); the last jr_c of
-            # them take jokers (capped-state equivalence makes any
-            # assignment optimal -- see Lemma on replay soundness).
+            # Place one (v,c) tile (or joker) into each recipient run
             n_rec = len(recipients)
             for idx, run in enumerate(recipients):
                 run.append(JOKER if idx >= n_rec - jr_c else (v, c))
             active[c] = recipients
             placed.extend([(v, c)] * e_c)
+        # Emit completed groups for this value
         jg = dec >> 24 & 15
         gvec = tuple((dec >> (6 * c) & 63) % 9 // 3 for c in range(NUM_COLORS))
         if any(gvec) or jg:
@@ -354,6 +392,7 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
                     melds.append(
                         [(v, c) for c in sorted(members[k])] + [JOKER] * jdist[k]
                     )
+    # Any runs still open after value 13 become melds
     for c in range(NUM_COLORS):
         melds.extend(active[c])
     placed.extend([JOKER] * (best_key // JMULT - jb))
@@ -362,5 +401,160 @@ def solve(board, hand, weight=None, joker_weight=None) -> Solution:
 
 
 def optimal_move(board, hand, weight=None, joker_weight=None) -> Solution:
-    """Same as solve()."""
+    """Alias for solve() with a clearer call-site name."""
     return solve(board, hand, weight, joker_weight)
+
+
+def solve_first_drop(hand, min_points: int = 30) -> Solution:
+    """First opening play: hand only, must reach min_points (default 30).
+
+    Same DP structure as solve() but with an empty board and a point cap
+    instead of a tile-placement score. Returns an empty Solution if no
+    legal opening exists.
+    """
+    if min_points <= 0:
+        raise ValueError("min_points must be positive")
+
+    hand_tiles = [_as_tile(t) for t in hand]
+
+    n_jokers = sum(1 for t in hand_tiles if t == JOKER)
+    if n_jokers > MAX_JOKERS:
+        raise ValueError(f"more than {MAX_JOKERS} jokers in play")
+
+    H = _tile_counts(t for t in hand_tiles if t != JOKER)
+    for v in range(1, NUM_VALUES + 1):
+        for c in range(NUM_COLORS):
+            if H[v][c] > MAX_COPIES:
+                raise ValueError(
+                    f"more than {MAX_COPIES} copies of tile {(v, c)} in play"
+                )
+
+    # DP state: (packed_run_key, points_so_far) -> tile count placed.
+    # points_so_far is capped at min_points during the sweep.
+    dp = {(0, 0): 0}
+    parents = []
+    for v in range(1, NUM_VALUES + 1):
+        # Within one value, layer also tracks uncapped tile count before groups close
+        layer = {}
+        for (s, p), sc in dp.items():
+            layer[(s, GP3_EMPTY, 0)] = (sc, (s, p), 0)
+        for c in range(NUM_COLORS):
+            mult = P[c]
+            shift = 6 * c
+            h_vc = H[v][c]
+            folded = tuple(
+                tuple(
+                    ((ni - oi) * mult + jr * JMULT, g, e, jr,
+                     (e + 3 * g + 9 * jr) << shift)
+                    for (ni, g, e, jr) in OPTS[(oi, 0, h_vc)]
+                    if jr <= n_jokers
+                )
+                for oi in range(N_CS)
+            )
+            nxt = {}
+            nxt_get = nxt.get
+            for (skey, gp, cnt), (sc, prevkey, dec) in layer.items():
+                javail = n_jokers - skey // JMULT
+                gp_row = GP3_NEXT[gp]
+                for delta, g, e, jr, dcode in folded[skey // mult % N_CS]:
+                    if jr > javail:
+                        continue
+                    nk = skey + delta
+                    nv = sc + e  # objective: maximize tiles placed
+                    nd = dec | dcode
+                    ncnt = cnt + e + jr
+                    for gp2 in gp_row[g]:
+                        k = (nk, gp2, ncnt)
+                        cur = nxt_get(k)
+                        if cur is None or nv > cur[0]:
+                            nxt[k] = (nv, prevkey, nd)
+            layer = nxt
+
+        # Close groups, add v * tile_count to points, fold back to (skey, p) keys
+        ndp, npar = {}, {}
+        for (skey, gp, cnt), (sc, prevkey, dec) in layer.items():
+            fin = GP3_FINISH[gp]
+            javail = n_jokers - skey // JMULT
+            for jg in range(min(javail, MAX_JOKERS) + 1):
+                if fin[jg]:
+                    fk = skey + jg * JMULT
+                    total_cnt = cnt + jg
+                    old_p = prevkey[1]
+                    new_p = min(min_points, old_p + v * total_cnt)
+                    nv = sc + jg
+                    key = (fk, new_p)
+                    cur = ndp.get(key)
+                    if cur is None or nv > cur:
+                        ndp[key] = nv
+                        npar[key] = (prevkey, dec | jg << 24)
+        dp = ndp
+        parents.append(npar)
+
+    # Need min_points reached and all runs closed
+    best_key, best_total = None, None
+    for (skey, p), sc in dp.items():
+        if p < min_points:
+            continue
+        if all(skey // P[c] % N_CS in CLOSEABLE for c in range(NUM_COLORS)):
+            total = sc + skey // JMULT
+            if best_total is None or total > best_total:
+                best_key, best_total = (skey, p), total
+
+    if best_key is None:
+        return Solution()  # no valid first-drop move
+
+    # Backtrack and reconstruct (same logic as solve, but track Rummikub points)
+    seq = []
+    cur = best_key
+    for v in range(NUM_VALUES, 0, -1):
+        prev, dec = parents[v - 1][cur]
+        seq.append((cur, dec))
+        cur = prev
+    seq.reverse()
+
+    melds = []
+    placed = []
+    points = 0
+    active = [[] for _ in range(NUM_COLORS)]
+    for v in range(1, NUM_VALUES + 1):
+        (skey, _p), dec = seq[v - 1]
+        for c in range(NUM_COLORS):
+            code = dec >> (6 * c) & 63
+            jr_c, rem = divmod(code, 9)
+            g_c, e_c = divmod(rem, 3)
+            target = COLOR_STATES[skey // P[c] % N_CS]
+            runs = active[c]
+            try:
+                ext, n_new = next(
+                    _extension_assignments([len(r) for r in runs], target)
+                )
+            except StopIteration:
+                raise AssertionError("run reconstruction failed") from None
+            ext_set = set(ext)
+            recipients = [runs[i] for i in ext]
+            for i, run in enumerate(runs):
+                if i not in ext_set:
+                    melds.append(run)
+            recipients.extend([] for _ in range(n_new))
+            n_rec = len(recipients)
+            for idx, run in enumerate(recipients):
+                run.append(JOKER if idx >= n_rec - jr_c else (v, c))
+            active[c] = recipients
+            placed.extend([(v, c)] * e_c)
+            points += v * (e_c + jr_c)
+        jg = dec >> 24 & 15
+        gvec = tuple((dec >> (6 * c) & 63) % 9 // 3 for c in range(NUM_COLORS))
+        if any(gvec) or jg:
+            members, jdist = _group_witness(gvec, jg)
+            for k in range(MAX_GROUPS_PER_VALUE):
+                if members[k]:
+                    melds.append(
+                        [(v, c) for c in sorted(members[k])] + [JOKER] * jdist[k]
+                    )
+        points += v * jg
+    for c in range(NUM_COLORS):
+        melds.extend(active[c])
+    final_skey, _ = best_key
+    placed.extend([JOKER] * (final_skey // JMULT))
+
+    return Solution(placed=placed, melds=melds, objective=best_total, points=points)

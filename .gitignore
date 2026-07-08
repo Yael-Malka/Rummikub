@@ -1,54 +1,32 @@
-# --- Python ---
+# Python bytecode
 __pycache__/
-**/__pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
+
+# Virtual environments
 .venv/
 venv/
 env/
-*.egg-info/
-.eggs/
-dist/
+
+# Testing
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.ipynb_checkpoints/
+.coverage
 
-# --- ML artifacts (large; keep local) ---
-train_models/data/
-train_models/models/
-train_models/weights/
-train_models/outputs/
-train_models/_archive/
-*.pt
-*.onnx
-*.pth
-*.ckpt
+# Build / packaging
+build/
+dist/
+*.egg-info/
 
-# --- IDE ---
+# IDE
 .idea/
-*.iml
-*.ipr
-*.iws
-.vscode/*
-!.vscode/extensions.json
-!.vscode/launch.json
-!.vscode/settings.json
+.vscode/
 
-# --- OS ---
+# OS
 .DS_Store
-**/.DS_Store
 Thumbs.db
 
-# --- Env / secrets ---
+# Environment files
 .env
-.env.*
-!.env.example
-**/*.pem
 
-# --- Logs & misc ---
-*.log
-*.swp
-*~
+# Training artifacts
+*.pt
