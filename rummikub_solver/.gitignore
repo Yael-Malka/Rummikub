@@ -1,17 +1,57 @@
+# Universal
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.log
+*.lock
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
-.pytest_cache/
+*.pyd
 .venv/
 venv/
+ENV/
+env/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
 .mypy_cache/
 .coverage
 htmlcov/
-.DS_Store
-Thumbs.db
 
-# Backend secrets
-.env
-.env.*
-!.env.example
+# Model weights
+worker/models/*
+!worker/models/README.md
+!worker/models/stage1/
+!worker/models/stage1/.gitkeep
+!worker/models/stage2/
+!worker/models/stage2/.gitkeep
+!worker/models/stage2/metadata.json
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+**/ephemeral/
+.pub-cache/
+.pub/
+/build/
+*.iml
+*.ipr
+*.iws
+.symlinks/
+*.plugin_scripts.json
+.flutter-plugins-dependencies
+**/local.properties
+**/GeneratedPluginRegistrant.*
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/ios/Flutter/Generated.xcconfig
