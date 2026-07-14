@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     REDIS_URL: str | None = None
     REDIS_TTL_SECONDS: int = 3600
 
+    # Database Configuration
+    DATABASE_URL: str = "postgresql+asyncpg://rummikub:rummikub123@localhost:30432/rummikub_db"
+
     # CORS Configuration
     # Supports parsing a list of strings if provided as JSON, or defaults to standard local development URLs
     ALLOWED_ORIGINS: list[str] = [
