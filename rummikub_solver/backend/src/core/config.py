@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     REDIS_URL: str | None = None
     REDIS_TTL_SECONDS: int = 3600
 
+    # Upload Configuration
+    MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024  # 5MB
+
     # Security & JWT Configuration
     SECRET_KEY: str = "super-secret-key-change-in-production"
     ALGORITHM: str = "HS256"

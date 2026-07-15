@@ -13,8 +13,11 @@ from alembic import context
 
 from src.core.config import settings
 from src.core.database import Base
+from src.models.db_models import Board
 from src.models.user import User
 from src.models.verification import EmailVerificationToken
+from src.models.game import Game
+from src.models.turn import Turn
 
 # this is the Alembic Config object
 config = context.config

@@ -36,3 +36,14 @@ class RedisConnectionError(HTTPException):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=detail,
         )
+
+
+class InvalidImageError(HTTPException):
+    """Exception raised when the uploaded image is invalid or has incorrect format."""
+
+    def __init__(self, detail: str = "Invalid image file format or size"):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )
+
