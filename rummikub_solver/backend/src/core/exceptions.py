@@ -28,6 +28,16 @@ class TokenInvalidError(AuthError):
         super().__init__(detail=detail)
 
 
+class PlayNotFoundError(HTTPException):
+    """Exception raised when the requested play ID cannot be found or is expired."""
+
+    def __init__(self, detail: str = "Play ID not found or expired"):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=detail,
+        )
+
+
 class RedisConnectionError(HTTPException):
     """Exception raised when the server cannot connect to Redis."""
 
@@ -47,3 +57,22 @@ class InvalidImageError(HTTPException):
             detail=detail,
         )
 
+
+class PlayProcessingError(HTTPException):
+    """Exception raised when a play is still being processed."""
+
+    def __init__(self, detail: str = "Play is still processing"):
+        super().__init__(
+            status_code=status.HTTP_202_ACCEPTED,
+            detail=detail,
+        )
+
+
+class PlayFailedError(HTTPException):
+    """Exception raised when processing a play fails."""
+
+    def __init__(self, failure_code: str, failure_message: str):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": failure_code, "message": failure_message},
+        )

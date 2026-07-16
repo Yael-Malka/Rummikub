@@ -30,6 +30,20 @@ class Settings(BaseSettings):
     # Database Configuration
     DATABASE_URL: str = "postgresql+asyncpg://rummikub:rummikub123@localhost:30432/rummikub_db"
 
+    # S3 / MinIO Configuration
+    S3_ENDPOINT_URL: str = "http://localhost:30900"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin123"
+    S3_BUCKET_NAME: str = "rummikub-boards"
+
+    # Celery Configuration
+    CELERY_BROKER_URL: str = "redis://localhost:31660/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:31660/0"
+
+    # Processing Timeout Configuration
+    PROCESSING_TIMEOUT_SECONDS: int = 120
+    PROCESSING_TIMEOUT_GRACE_SECONDS: int = 15
+
     # SMTP / Email Configuration
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 465
