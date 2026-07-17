@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from src.api.routes.auth import router as auth_router
+from src.api.routes.play import router as play_router
 from src.core.config import settings
 from src.core.redis import close_redis_pool, init_redis_pool, check_redis_health
 
@@ -46,6 +47,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api/v1/auth")
+app.include_router(play_router, prefix="/api/v1/play")
 
 
 @app.get("/")
