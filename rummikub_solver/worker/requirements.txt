@@ -1,1 +1,13 @@
-pytest>=8.0.0
+# PyTorch: default install uses CPU wheels (works on all machines).
+# For NVIDIA GPU acceleration, reinstall torch with CUDA, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+torch
+ultralytics
+opencv-python
+numpy
+celery
+redis
+boto3
+sqlalchemy
+psycopg2-binary
+python-dotenv
