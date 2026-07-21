@@ -1,0 +1,12 @@
+<svg width="80" height="96" viewBox="0 0 80 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rummikub Assistant">
+  <defs>
+    <linearGradient id="rm-face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFDF6"></stop>
+      <stop offset="1" stop-color="#F3EAD6"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="10" width="68" height="82" rx="14" fill="#1C1B16" opacity="0.20"></rect>
+  <rect x="6" y="4" width="68" height="82" rx="14" fill="url(#rm-face)" stroke="#E4D7BB" stroke-width="1.5"></rect>
+  <rect x="6" y="4" width="68" height="8" rx="4" fill="#FFFFFF" opacity="0.7"></rect>
+  <text x="40" y="62" font-family="&#39;Bricolage Grotesque&#39;,&#39;Hanken Grotesk&#39;,sans-serif" font-size="54" font-weight="800" text-anchor="middle" fill="#1E6B4E">R</text>
+</svg>
